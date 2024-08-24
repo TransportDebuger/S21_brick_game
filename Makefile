@@ -55,7 +55,7 @@ ${DIR_OBJ}:
 	@mkdir -p $@
 
 ${DIR_TEST_OBJ}: ${DIR_OBJ}
-	@mkdir -p $@
+	@mkdir -p $
 
 ${DIR_GCOV_OBJ}: ${DIR_OBJ}
 	@mkdir -p $@
@@ -64,9 +64,9 @@ ${DIR_REPORT}:
 	@mkdir -p $@
 
 ${C_STYLE}: ${ALL_SOURCES} ${ALL_HEADERS}
-	cp ../materials/linters/.clang-format . 
+	@cp ../materials/linters/.clang-format . 
 	$@ ${C_STYLE_FLAGS} $^
-	rm ./.clang-format
+	@rm ./.clang-format
 
 ${C_CHECK}: ${ALL_SOURCES} ${ALL_HEADERS}
 	$@ ${C_CHECK_FLAGS} $^
@@ -74,7 +74,9 @@ ${C_CHECK}: ${ALL_SOURCES} ${ALL_HEADERS}
 styletest: ${C_STYLE} ${C_CHECK}
 
 format: ${ALL_SOURCES} ${ALL_HEADERS}
+	@cp ../materials/linters/.clang-format . 
 	${C_STYLE} ${C_STYLE_CORR_FLAG} $^ 
+	@rm ./.clang-format
 
 clean:
 	@rm -rf ${DIR_REPORT}

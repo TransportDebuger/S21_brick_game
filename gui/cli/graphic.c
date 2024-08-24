@@ -2,7 +2,7 @@
 
 void initGraphics(void) {
   initscr();
-  raw(); //! cbrake()
+  raw();  //! cbrake()
   noecho();
   keypad(stdscr, TRUE);
   curs_set(0);

@@ -20,12 +20,24 @@ void updateGame(GameInfo_t *game) {}
 
 /* Забираем значение ячейки игрового поля */
 int getCellValue(int **gameboard, int col, int row) {
-  return gameboard[col][row];
+  int val = -1;
+  if (gameboard && col >= 0 && col < GAME_BOARD_WIDTH && row >= 0 &&
+      row < GAME_BOARD_HEIGHT) {
+    val = gameboard[col][row];
+  }
+  return val;
 }
 
 /* Устанавливаем значение игровой ячейки */
-void setCellValue(int **gameboard, int col, int row, int val) {
-  gameboard[col][row] = val;
+int setCellValue(int **gameboard, int col, int row, int val) {
+  int err = 0;
+  if (gameboard && col >= 0 && col < GAME_BOARD_WIDTH && row >= 0 &&
+      row < GAME_BOARD_HEIGHT) {
+    gameboard[col][row] = val;
+  } else {
+    err = 1;
+  }
+  return err;
 }
 
 int **CreateGameField(const int rows, const int cols) {
@@ -43,3 +55,7 @@ void DestroyGameField(int **field, const int rows) {
     free(field);
   }
 }
+
+int loadHighScore() { return 0; }
+
+void saveHighScore(const int hscore) {}

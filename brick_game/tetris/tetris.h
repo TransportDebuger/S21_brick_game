@@ -29,9 +29,9 @@ typedef enum Tetraminoes {
 } Tetraminoes;
 
 typedef struct GameInfo_t {
-  int **field; // Game field
+  int **field;  // Game field
   int **next;
-  int score; // ScorePoints
+  int score;  // ScorePoints
   int high_score;
   int level;
   int speed;
@@ -45,8 +45,8 @@ int **CreateGameField(const int rows, const int cols);
 // Game mechanics
 void updateGameState(GameInfo_t *curGame);
 void updateGame(GameInfo_t *curGame);
-int getCellValue(GameInfo_t *game, int col, int row);
-void setCellValue(int **gameboard, int col, int row, int val);
+int getCellValue(int **gameboard, int col, int row);
+int setCellValue(int **gameboard, int col, int row, int val);
 
 // Game destructors
 void DestroyGameInfo(GameInfo_t *game);
@@ -55,8 +55,8 @@ void DestroyGameField(int **field, const int rows);
 // void userInput(UserAction_t action, bool hold);
 
 //Функции загрузки и выгруки лучшего результата
-int loadHighScore(GameInfo_t *ginfo);
-void saveHighScore(const GameInfo_t *ginfo);
+int loadHighScore();
+void saveHighScore(const int hscore);
 
 // GameInfo_t updateCurrentState();
 
