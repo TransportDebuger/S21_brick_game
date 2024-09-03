@@ -16,8 +16,13 @@
     Видимая высота игрового поля согласно условий задачи
 */
 #define GAME_BOARD_VISIBLE_HEIGHT = 20
-
+/*
+    Задержка выполнения цикла
+*/
 #define GAME_SPEED_DELAY 1000
+/*
+    Модификатор задержки для изменения скорости в игре
+*/
 #define GAME_SPEED_DELAY_MODIFIER 0.9
 
 #endif
