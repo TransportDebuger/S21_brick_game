@@ -19,8 +19,8 @@ HEADERS_LIB = $(wildcard ${DIR_HEADERS_LIB}/*.h)
 HEADERS_GUI = $(wildcard ${DIR_HEADERS_GUI}/*.h)
 ALL_SOURCES = ${SOURCES} ${SOURCES_LIB} ${SOURCES_GUI}
 ALL_HEADERS = ${HEADERS} ${HEADERS_LIB} ${HEADERS_GUI}
-EXEC = brickgame
-LIB_STATIC = s21_libtetris.a
+EXEC = tetris
+LIB_STATIC = libtetris.a
 LIB_TEST_EXEC = test
 GCOV_EXEC = gcov_report
 DIR_OBJ = obj
@@ -31,6 +31,7 @@ ALL_OBJECTS = ${OBJECTS} ${OBJECTS_LIB} ${OBJECTS_GUI}
 DIR_TEST_OBJ = ${DIR_OBJ}/tests
 DIR_GCOV_OBJ = ${DIR_OBJ}/gcov
 DIR_REPORT = report
+DOX_CONFIG = ./Doxyfile
 
 C_STYLE = clang-format
 C_STYLE_FLAGS = -n
@@ -50,6 +51,7 @@ install:
 uninstall:
 
 dvi:
+	doxygen ${DOX_CONFIG}
 
 dist:
 
