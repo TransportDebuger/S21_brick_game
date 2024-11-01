@@ -49,7 +49,10 @@
 /*!
     Задержка выполнения цикла (пока так, дальше определимся по мере реализации.)
 */
-#define GAME_SPEED_DELAY 1000
+#define GAME_SPEED_DEFAULT 1
+#define GAME_SPEED_MAX 10
+#define GAME_SPEED_DELAY 10
+#define GAME_SPEED_MAX_DELAY 1000
 
 /*!
     Модификатор задержки для изменения скорости в игре

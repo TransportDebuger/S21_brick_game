@@ -14,32 +14,31 @@
 #ifndef TETRIS_H
 #define TETRIS_H
 
+#include <stdbool.h>
+
 #include "gamepref.h"
 
-typedef enum UserAction_t {
-  Start,
-  Pause,
-  Terminate,
-  Left,
-  Right,
-  Up,
-  Down,
-  Action
-} UserAction_t;
+/*!
+  \brief Макрос размерности массива фигур (тетрамино)
+*/
+#define TET_COUNT 7
 
 /*!
-  \brief Перечисление индексов фигур для определения выбора конкретной фигуры в
-  массиве.
+  \brief Перечисление значения флага состояния хранения адреса локатора
 */
-typedef enum tetraminoIndex_t {
-  I_TYPE,  ///< Индекс фигуры I-типа
-  O_TYPE,  ///< Индекс фигуры O-типа
-  T_TYPE,  ///< Индекс фигуры T-типа
-  L_TYPE,  ///< Индекс фигуры L-типа
-  J_TYPE,  ///< Индекс фигуры J-типа
-  S_TYPE,  ///< Индекс фигуры S-типа
-  Z_TYPE   ///< Индекс фигуры Z-типа
-} tetraminoIndex_t;
+enum is_set { nset, set };
+
+typedef enum fsm_state_t {
+  fsm_none,
+  fsm_start,
+  fsm_pause,
+  fsm_spawn,
+  fsm_move,
+  fsm_shift,
+  fsm_connect,
+  fsm_gameover,
+  fsm_exit
+} fsm_state_t;
 
 /*!
   \brief Перечисление индексов ориентации фигуры.
@@ -66,17 +65,23 @@ typedef enum tetMoveDirection_t {
 } tetMoveDirection_t;
 
 /*!
-  \brief Перечисление индексов направления вращения фигуры.
+  \brief Перечисление индексов фигур для определения выбора конкретной фигуры в
+  массиве.
 */
-typedef enum tetRotateDirection_t {
-  RotateCCwise = -1,  ///< Определяет вращение против часовой стрелки
-  RotateCwise = 1  ///< Определяет вращение по часовой стрелке
-} tetRotateDirection_t;
+typedef enum tetraminoIndex_t {
+  I_TYPE,  ///< Индекс фигуры I-типа
+  O_TYPE,  ///< Индекс фигуры O-типа
+  T_TYPE,  ///< Индекс фигуры T-типа
+  L_TYPE,  ///< Индекс фигуры L-типа
+  J_TYPE,  ///< Индекс фигуры J-типа
+  S_TYPE,  ///< Индекс фигуры S-типа
+  Z_TYPE   ///< Индекс фигуры Z-типа
+} tetraminoIndex_t;
 
 /*!
   \brief Структура описания фигуры тетрамино.
 
-  Структура предназначена для реализпации хранения информации о фигурах
+  Структура предназначена для реализации хранения информации о фигурах
   тетрамино.
 */
 typedef struct Tetramino_t {
@@ -85,26 +90,6 @@ typedef struct Tetramino_t {
   const int side;  ///< Целочисленное значение описывающее размерность стороны
                    ///< квадрата описывающего фигуру.
 } Tetramino_t;
-
-static const int i_type_tetramino[] = {0, 0, 0, 0, 1, 1, 1, 1,
-                                       0, 0, 0, 0, 0, 0, 0, 0};
-
-static const int o_type_tetramino[] = {2, 2, 2, 2};
-
-static const int t_type_tetramino[] = {0, 0, 0, 3, 3, 3, 0, 3, 0};
-
-static const int l_type_tetramino[] = {0, 0, 0, 4, 4, 4, 4, 0, 0};
-
-static const int j_type_tetramino[] = {0, 0, 0, 5, 5, 5, 0, 0, 5};
-
-static const int s_type_tetramino[] = {0, 0, 0, 0, 6, 6, 6, 6, 0};
-
-static const int z_type_tetramino[] = {0, 0, 0, 7, 7, 0, 0, 7, 7};
-
-static const Tetramino_t Tetraminoes[] = {
-    {i_type_tetramino, 4}, {o_type_tetramino, 2}, {t_type_tetramino, 3},
-    {l_type_tetramino, 3}, {j_type_tetramino, 3}, {s_type_tetramino, 3},
-    {z_type_tetramino, 3}};
 
 /*!
   \brief Структура описания состояния текущей фигуры тетрамино относительно
@@ -137,7 +122,7 @@ typedef struct TetraminoState_t {
 typedef struct GameInfo_t {
   int** field;  ///< Указатель область памяти хранящее двумерный массив
                 ///< целочисленных значений отображающих игровое поле.
-  int** next;   // (нафига не понял)
+  int** next;   ///< (нафига не понял)
   int score;  ///< Целочисленное значение хранящее текущее количество очков
               ///< полученное игроком во время игрового процесса.
   int high_score;  ///< Целочисленное значение хранящее наилучший роезультат,
@@ -151,77 +136,94 @@ typedef struct GameInfo_t {
 } GameInfo_t;
 
 /*!
-  \brief Функция (конструктор) выделения памяти, для структуры GameInfo_t.
-
-  Функция предназначена для выделения области памяти для хранения структуры GameInfo_t предназначенной для хранения текущего состояния игры в моменте времени.
+  \brief Базовая структура игры.
 */
+typedef struct Game_t {
+  GameInfo_t* gameInfo;  ///< Указатель на область памяти где хранится структура
+                         ///< состояния игры в моменте времени.
+  Tetramino_t*
+      tetraminoes;  ///< Указатель на массив структур описания фигур тетрамино.
+  TetraminoState_t* curTetState;  ///< Указатель на область памяти где хранится
+                                  ///< состояние текущей фигуры.
+  int nextTetIndex;  ///< Индекс следующей фигуры в массиве.
+  fsm_state_t state;  ///< Действие выполненное пользователем.
+  bool modified;
+} Game_t;
+
+typedef enum UserAction_t {
+  None,
+  Start,
+  Pause,
+  Terminate,
+  Left,
+  Right,
+  Up,
+  Down,
+  Action
+} UserAction_t;
+
+/*!
+  \brief Перечисление индексов направления вращения фигуры.
+*/
+typedef enum tetRotateDirection_t {
+  RotateCCwise = -1,  ///< Определяет вращение против часовой стрелки
+  RotateCwise = 1  ///< Определяет вращение по часовой стрелке
+} tetRotateDirection_t;
+
+/*!
+  \brief Структура хранения локатора адреса структуры Game_t.
+*/
+typedef struct game_locator {
+  Game_t* addr;  ///< Указатель на структуру Game_t
+  enum is_set setval;  ///< Признак наличия заданного адреса.
+} game_locator_t;
+
+/*!
+  \defgroup Score_operations Функции обработки результата игры
+  \brief Функции обработки результата игры
+
+  Функции получают и обрабатывают изменения результатов игры
+*/
+// int getHighScore();
+// void saveHighScore(const int hscore);
+
+/*!
+  \defgroup Data_Structure_management Функции управления структурами данных
+  \brief Функции создают, очищают и удаляют игровые структуры
+*/
+Game_t* createGame();
+void clearGame(Game_t* game);
+void destroyGame(Game_t* game);
 GameInfo_t* createGameInfo();
-
-/*!
-  \brief Функция (конструктор) создания массива ячеек игрового поля.
-  \param [in] rows Целочисленное значение количества ячеек по вертикали.
-  \param [in] cols Целочисленное значение количества ячеек по горизонтали.
-  \return Указатель на область памяти, хранящий массив целочисленных значений ячеек игрового поля.
-
-  Функция предназначена для выделения области памяти для хранения целочисленных значений ячеек игрового поля.
-*/
-int** createGameField(const int rows, const int cols);
-
-/*!
-  \brief Функция (деструктор) очищения памяти, занимаемой структурой GameInfo_t.
-  \param [in] game Указатель на область памяти, занимаемой структурой GameInfo_t.
-
-  Функция предназначена для освобождения области памяти выделенной для хранения структуры GameInfo_t предназначенной для хранения текущего состояния игры в моменте времени.
-*/
 void destroyGameInfo(GameInfo_t* game);
-
-/*!
-  \brief Функция (деструктор) очищения памяти, занимаемой массивом ячеек игрового поля.
-  \param [in] field Указатель на область памяти, занимаемой массивом значений ячеек игрового поля.
-
-  Функция предназначена для освобождения области памяти выделенной для хранения целочисленных значений ячеек игрового поля.
-*/
 void destroyGameField(int** field);
-
-// Game mechanics
-// void updateCurrentState(GameInfo_t *curGame);
-
-/*!
-  \brief Функция обновлениния состояния игры
-  \param [in,out] curGame Указатель на область памяти выделенную для храненеия структуры GameInfo_t.
-
-*/
-//void updateGame(GameInfo_t *curGame);
+int** createGameField(const int rows, const int cols);
+TetraminoState_t* createTetraminoState();
+void destorytetraminoState(TetraminoState_t* tetstate);
 
 /*!
-     \brief Получение значения хранимого в ячейке игрового поля
-     \param [in] gameboard Указатель на область памяти, хранящую массив
-   значений ячеек игрового поля. \param [in] col Целочисленное значение,
-   определяющее координату столбца целевой ячейки игрового поля. \param [in] row
-   Целочисленное значение, определяющее координату строки целевой ячейки
-   игрового поля. \return Значение, хранимой в целевой ячейке игрового поля.
-     \exception Если не передан указатель на область памяти, хранящую набор
-   ячеек игрового поля возвращает -1.
-
-     Функция предназначена для получения значения в ячейке игрового поля и
-   передачи его для последующей обработки.
+  \defgroup Address_providers Функции поставщиков адресов.
+  \brief Функции предназначенные для предоставления адресов структур данных.
 */
+Game_t* locateGame(Game_t* game);
+
+/*!
+  \brief Прототип функций действия вызываемых в соответствии со схемой конечных
+  состояний.
+*/
+typedef void (*actfunc)(Game_t*);
+
+void userInput(UserAction_t action, bool hold);
+
+/*!
+  \defgroup Data_manipulation Функции чтения и изменения данных
+  \brief Функции предназначены для получения и изменения данных
+*/
+Tetramino_t* fillTatraminoes();
+void destroyTetraminoes();
 int getCellValue(const int** gameboard, int col, int row);
-
-/*!
-     \brief Изменение значения ячейки на игровом поле.
-     \param [in,out] gameboard Указатель на область памяти, хранящее массив
-   значений ячеек игрового поля. \param [in] col Целочисленное значение,
-   определяющее координату столбца целевой ячейки игрового поля. \param [in] row
-   елочисленное значение, определяющее координату строки целевой ячейки игрового
-   поля. \return 0 - успешное выполнение изменений, 1 - ошибка выполнения.
-     \exception Если указатель на указатель области памяти, хранящую массив
-   значений игрового поля, не передан, возвращает ненулевое значение кода
-   ошибки.
-
-     Функция предназначена для изменения значения ячейки игрового поля.
-*/
 int setCellValue(int** gameboard, int col, int row, int val);
+int setRandomTetraminoIndex();
 
 /*!
   \brief Функция обработки действия "Вращение фигуры"
@@ -276,25 +278,33 @@ int moveTetramino(TetraminoState_t* tetState,
   TetraminoState_t.
 */
 int checkCollision(GameInfo_t* gameinfo, TetraminoState_t* tetState);
-// void userInput(UserAction_t action, bool hold); //обязательная
 
 /*!
-  \brief Функция считывания из файла значения лучшего результата
-  \return Возвращает целочисленное значение отражающее наилучший результат или 0 (при возникновении исключений или попытке записать отрицательное значение).
-  \exception При ошибке открытия файла или отсутсвии значения в файла.
+  \defgroup Functions_getting_data_structure_for_rendering Функции получения
+  данных для рендера состояния игры.
+  \brief Функции получения данных для рендер сотояния игры.
 
-  Функция предназначена для считывания значения лучшего результата из файла. 
+
+  \details Функции получают и возвращают структуру данных game_info_t
 */
-int getHighScore();
+GameInfo_t updateCurrentState();
 
 /*!
-  \brief Функция считывания из файла значения лучшего результата
-  \return Возвращает целочисленное значение отражающее наилучший результат
-
-  Функция предназначена для записи значения лучшего результата в файл. 
+  \brief Функция вызова
 */
-void saveHighScore(const int hscore);
-
-// GameInfo_t updateCurrentState(); // обязательная
+actfunc fsm(fsm_state_t state, UserAction_t userAction);
+void start_fn(Game_t* game);
+void pause_fn(Game_t* game);
+void spawn_fn(Game_t* game);
+void move_fn(Game_t* game);
+void shift_fn(Game_t* game);
+void connect_fn(Game_t* game);
+void gameover_fn(Game_t* game);
+void terminate_fn(Game_t* game);
+void left_fn(Game_t* game);
+void right_fn(Game_t* game);
+void up_fn(Game_t* game);
+void down_fn(Game_t* game);
+void action_fn(Game_t* game);
 
 #endif  // TETRIS_H
