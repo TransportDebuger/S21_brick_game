@@ -1,5 +1,5 @@
 /**
- * @file fsm.h
+ * @file s21_fsm.h
  * @defgroup FSM Универсальная машина конечных автоматов
  * @brief Универсальная машина конечных автоматов
  *
@@ -75,8 +75,8 @@ extern "C" {
  * внешнего триггера. Используется `fsm_update()` для поиска таких переходов.
  *
  * @note Рекомендуется использовать только одно правило на состояние.
- * @warning Не используйте значение данного определения для событий, определенных
- * в пользовательском коде.
+ * @warning Не используйте значение данного определения для событий,
+ * определенных в пользовательском коде.
  *
  * @code
  * {STATE_RUNNING, FSM_EVENT_NONE, STATE_TIMEOUT, NULL, on_enter_timeout}
@@ -90,7 +90,7 @@ extern "C" {
  *
  * Целочисленный тип для представления событий. Позволяет использовать
  * перечисления или именованные константы.
- * 
+ *
  * @warning Значение `0` зарезервировано под @ref FSM_EVENT_NONE.
  * Не используйте `0` для пользовательских событий.
  *
@@ -106,9 +106,9 @@ typedef int fsm_event_t;
  *
  * Целочисленный тип для представления состояний. Рекомендуется использовать
  * перечисления для типобезопасности.
- * 
+ *
  * @note Не рекомендуется использовать отрицательные значения.
- * 
+ *
  * @see @ref fsm_t
  */
 typedef int fsm_state_t;
@@ -121,18 +121,18 @@ typedef int fsm_state_t;
  * Может быть NULL, если контекст не требуется.
  *
  * Пользователь может передавать любую структуру, например:
- * 
+ *
  * @code
-   typedef struct {  
-     custom_data_t data;  
-     int count;  
-   } MyContext;  
-  
-   MyContext ctx;  
-   fsm_context_t fctx = &ctx;  
-   fsm_init(&fsm, fctx, transitions, count, STATE_INIT);  
+   typedef struct {
+     custom_data_t data;
+     int count;
+   } MyContext;
+
+   MyContext ctx;
+   fsm_context_t fctx = &ctx;
+   fsm_init(&fsm, fctx, transitions, count, STATE_INIT);
    @endcode
- * 
+ *
  * @see @ref fsm_t
  * @see @ref fsm_cb_t
  */
@@ -148,7 +148,7 @@ typedef void *fsm_context_t;
  *
  * @note Колбэки не должны вызывать `fsm_process_event` или `fsm_update`
  *       без защиты от рекурсии — флаг `processing` предотвращает это.
- * 
+ *
  * @see @ref fsm_transition_t
  * @see @ref fsm_init
  */
@@ -265,7 +265,7 @@ void fsm_destroy(fsm_t *fsm);
  * @return true, если переход выполнен; false иначе.
  *
  * @pre fsm != NULL
- * 
+ *
  * @note Если `fsm == NULL`, возвращает false.
  *
  * @see @ref fsm_update

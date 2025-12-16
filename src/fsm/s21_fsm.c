@@ -1,13 +1,10 @@
-#include "fsm.h"
-
-#include <stdlib.h>
+#include "s21_fsm.h"
 
 bool fsm_init(fsm_t *fsm, fsm_context_t ctx,
               const fsm_transition_t *transitions, size_t count,
               fsm_state_t start_state) {
-  
   if (!fsm || !transitions || count < 1) return false;
-  
+
   fsm->ctx = ctx;
   fsm->transitions = transitions;
   fsm->count = count;
@@ -22,7 +19,7 @@ void fsm_destroy(fsm_t *fsm) { (void)fsm; }
 bool fsm_process_event(fsm_t *fsm, fsm_event_t event) {
   if (!fsm || fsm->processing) return false;
 
-  fsm->processing = true; //Защита от рекурсивного вызова fsm_process_event
+  fsm->processing = true;  //Защита от рекурсивного вызова fsm_process_event
   for (size_t i = 0; i < fsm->count; ++i) {
     const fsm_transition_t *t = &fsm->transitions[i];
     if (t->src == fsm->current && t->event == event) {

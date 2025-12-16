@@ -8,7 +8,7 @@
 #include <check.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "fsm.h"
+#include "s21_fsm.h"
 
 /* Тестовые состояния */
 enum test_states {
