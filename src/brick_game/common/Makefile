@@ -7,7 +7,7 @@ UNAME_S := $(shell uname -s)
 
 PROJECTNAME = s21_bgame
 LIBTYPE ?= static
-LIBNAME := lib$(PROJECTNAME)_cmn
+LIBNAME := lib$(PROJECTNAME)
 
 # ============================================================================
 # НАСТРОЙКА ПУТЕЙ ДЛЯ СБОРКИ
@@ -16,7 +16,7 @@ LIBNAME := lib$(PROJECTNAME)_cmn
 SRCDIR = .
 OBJDIR = $(SRCDIR)/obj
 TESTSRCDIR ?= $(SRCDIR)/tests
-TESTSOURCES := $(TESTSRCDIR)/test_brickgame_common.c
+TESTSOURCES := $(TESTSRCDIR)/test_bgame.c
 TESTBUILDDIR ?= $(TESTSRCDIR)/build
 TESTEXEC ?= test_runner
 BUILDDIR := $(SRCDIR)/build
@@ -48,10 +48,10 @@ endif
 COVERAGE_CFLAGS := $(CFLAGS) --coverage -g
 
 ifeq ($(UNAME_S), Linux)
-    TESTLIBS = -lcheck -lsubunit -lm -lrt -lpthread
+    TESTLIBS = -lsubunit -lm -lrt -lpthread -lcmocka
 endif
 ifeq ($(UNAME_S), Darwin)
-    TESTLIBS = -lcheck -lm -lpthread
+    TESTLIBS = -lm -lpthread -lcmocka
 endif
 
 CLFORMAT := clang-format
@@ -61,7 +61,6 @@ CPPCHECK := cppcheck
 CPPCHECKFLAGS := --enable=all \
                  --suppress=missingIncludeSystem \
                  --suppress=unusedFunction \
-				 --suppress=unusedStructMember \
                  --language=c --std=c11 \
                  --error-exitcode=1 $(SOURCES) $(INCLUDES)
 
@@ -78,7 +77,7 @@ GENHTML := genhtml
 LINTERS = $(CLFORMAT) $(CPPCHECK)
 MEMCHECK = $(VALGRIND)
 COVERAGE = $(LCOV)
-UNITTEST = check
+UNITTEST = libcmocka-dev
 DOCGEN = doxygen graphviz
 
 # ============================================================================
@@ -165,7 +164,7 @@ endef
 
 all: test build dvi install
 
-install: build
+install:
 	@$(call print-status, Installing $(LIBNAME))
 	@mkdir -p $(INCDIR) $(BINDIR)
 	@cp $(INCLUDES) $(INCDIR)/
@@ -206,7 +205,7 @@ $(COVERAGE_LIB): $(COVERAGE_OBJECTS)
 
 $(OBJDIR_COV)/%.o: $(SRCDIR)/%.c $(INCLUDES)
 	@mkdir -p $(dir $@)
-	$(CC) $(COVERAGE_CFLAGS) -I$(SRCDIR) -c $< -o $@
+	$(CC) $(COVERAGE_CFLAGS) -DTEST_ENV -I$(SRCDIR) -c $< -o $@
 
 test: linter-test unit-test mem-test gcov-report
 
@@ -249,8 +248,8 @@ unit-test-build: check-dep-unit $(COVERAGE_LIB)
 	@if [ ! -f "$(TESTSOURCES)" ]; then \
 		$(call print-error, Test sources $(TESTSOURCES) not found); exit 1; \
 	fi
-	@$(CC) $(COVERAGE_CFLAGS) -I$(SRCDIR) -L$(BUILDDIR) \
-		$(TESTSOURCES) $(TESTLIBS) -l$(PROJECTNAME)_cmn_cov -o $(TESTBUILDDIR)/$(TESTEXEC)
+	@$(CC) $(COVERAGE_CFLAGS) -DTEST_ENV -I$(SRCDIR) -L$(BUILDDIR) \
+		$(TESTSOURCES) $(TESTLIBS) -l$(PROJECTNAME)_cov -o $(TESTBUILDDIR)/$(TESTEXEC)
 	@$(call print-success, $(TESTEXEC) built at $(TESTBUILDDIR))
 
 check-dep-unit:
