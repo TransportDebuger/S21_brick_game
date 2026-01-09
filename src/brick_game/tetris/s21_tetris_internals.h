@@ -92,7 +92,7 @@
  * @see TETRIS_FIELD_COLS, tetris_check_collision(), tetris_spawn_piece(),
  * tetris_clear_lines()
  */
-#define TETRIS_FIELD_ROWS 20
+#define TETRIS_FIELD_ROWS BGAME_FIELD_HEIGHT
 
 /**
  * @def TETRIS_FIELD_COLS
@@ -127,7 +127,7 @@
  * @see TETRIS_FIELD_ROWS, tetris_check_collision(), tetris_rotate_piece(),
  * tetris_draw_field()
  */
-#define TETRIS_FIELD_COLS 10
+#define TETRIS_FIELD_COLS BGAME_FIELD_WIDTH
 
 /**
  * @def TETRIS_PIECE_SIZE

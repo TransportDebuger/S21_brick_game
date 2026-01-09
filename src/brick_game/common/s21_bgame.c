@@ -243,7 +243,7 @@ static GameContext g_current = {NULL, NULL};
 
 bool bg_switch_game(GameId_t id) {
   const GameInterface_t *iface = bg_get_game(id);
-  if (!iface) {
+  if (!iface || iface->id == GAME_UNDEFINED) {
     return false;  // Игра не зарегистрирована
   }
 

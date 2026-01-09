@@ -319,7 +319,7 @@ check-dep-coverage:
 # ============================================================================
 
 dvi: check-dep-dvi
-	$(call print-status, Generating documentation)
+	@$(call print-status, Generating documentation)
 	@mkdir -p $(DOCDIR)
 	@sed "s|^OUTPUT_DIRECTORY.*|OUTPUT_DIRECTORY = $(DOCDIR)|" Doxyfile > Doxyfile.tmp
 	@doxygen Doxyfile.tmp
@@ -327,7 +327,7 @@ dvi: check-dep-dvi
 	$(call print-success, Documentation generated at $(DOCDIR))
 
 check-dep-dvi:
-	$(call print-status, Checking documentation dependencies)
+	@$(call print-status, Checking documentation dependencies)
 	@$(call check-dep, doxygen)
 
 # ============================================================================
