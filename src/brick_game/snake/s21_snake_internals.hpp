@@ -282,7 +282,7 @@ constexpr int SNAKE_INITIAL_LENGTH = 3;
  * }
  * @endcode
  */
-constexpr const char* SNAKE_SCORE_DIR = ".brickgame";
+constexpr const char* SNAKE_SCORE_DIR = BGAME_SCORE_DIR;
 
 /**
  * @brief Полный путь к файлу сохранения рекорда игры "Змейка".
@@ -335,7 +335,7 @@ constexpr const char* SNAKE_SCORE_DIR = ".brickgame";
  * (0)
  * @endcode
  */
-constexpr const char* SNAKE_SCORE_FILE = ".brickgame/snake.score";
+constexpr const char* SNAKE_SCORE_FILE = BGAME_SCORE_DIR "/snake.score";
 
 /**
  * @brief Значение, используемое в info_.field для обозначения яблока
@@ -570,17 +570,18 @@ enum class SnakeState : int {
  * @endcode
  */
 enum class SnakeEvent : int {
-  NONE = 0,  ///< Пустое событие — игнорируется диспетчером
-  START,  ///< Событие старта или перезапуска игры — переход в MOVE
-  MOVE_LEFT,  ///< Попытка сдвинуть змейку влево — обрабатывается, если возможно
-  MOVE_RIGHT,  ///< Попытка сдвинуть змейку вправо — обрабатывается, если
-               ///< возможно
-  MOVE_DOWN,  ///< Попытка сдвинуть змейку вниз — может использоваться для
-              ///< ускорения
-  MOVE_UP,  ///< Попытка сдвинуть змейку вверх — обрабатывается, если возможно
-  PAUSE_TOGGLE,  ///< Переключение состояния паузы (вкл/выкл)
-  TERMINATE,  ///< Принудительное завершение игры (выход)
-  MAX  ///< Служебное значение: количество событий (для итераций)
+  NONE = FSM_EVENT_NONE,  ///< Пустое событие — игнорируется диспетчером
+  START,                  ///< Событие старта или перезапуска игры — переход в MOVE
+  MOVE_LEFT,              ///< Попытка сдвинуть змейку влево — обрабатывается, если возможно
+  MOVE_RIGHT,             ///< Попытка сдвинуть змейку вправо — обрабатывается, если
+                          ///< возможно
+  MOVE_DOWN,              ///< Попытка сдвинуть змейку вниз — может использоваться для
+                          ///< ускорения
+  MOVE_UP,                ///< Попытка сдвинуть змейку вверх — обрабатывается, если возможно
+  PAUSE_TOGGLE,           ///< Переключение состояния паузы (вкл/выкл)
+  TERMINATE,              ///< Принудительное завершение игры (выход)
+  AUTO_RESET,             ///< Автоматический сброс игры
+  MAX                     ///< Служебное значение: количество событий (для итераций)
 };
 
 /**
@@ -1081,6 +1082,9 @@ class SnakeGame {
   int apple_x_ = -1;  ///< X-координата текущего яблока
   int apple_y_ = -1;  ///< Y-координата текущего яблока
   fsm_t fsm_{};      ///< Конечный автомат
+  bool game_over_handled_ = false;  ///< Флаг обработки завершения игры
+  int game_over_timer_ = 0;         ///< Счетчик для таймера завершения игры
+  static constexpr int GAME_OVER_DELAY_TICKS = 60;  ///< Задержка в тика
   static const fsm_transition_t transitions_[];
 };
 
@@ -1123,7 +1127,7 @@ class SnakeGame {
      PAUSED -> MOVE [label="PAUSE_TOGGLE", fontcolor=orange];
 
      MOVE -> GAME_OVER [label="COLLISION / TERMINATE", fontcolor=red];
-     GAME_OVER -> INIT [label="INIT", fontcolor=green];
+     GAME_OVER -> INIT [label="AUTO_RESET", fontcolor=green];
 
      // Обработка движения (не вызывает смену состояния)
      MOVE -> MOVE [label="MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN",

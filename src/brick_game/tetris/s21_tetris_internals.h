@@ -190,7 +190,7 @@
  *
  * @see tetris_load_score(), tetris_save_score(), tetris_ensure_config_dir()
  */
-#define TETRIS_SCORE_DIR ".brickgame"
+#define TETRIS_SCORE_DIR BGAME_SCORE_DIR
 
 /**
  * @def TETRIS_SCORE_FILE
@@ -395,7 +395,7 @@ typedef enum {
  * tetris_handle_input, tetris_update
  */
 typedef enum {
-  TETRIS_EVT_NONE = 0,  ///< Пустое событие — используется для внутренних
+  TETRIS_EVT_NONE = FSM_EVENT_NONE,  ///< Пустое событие — используется для внутренних
                         ///< переходов без внешнего триггера
   TETRIS_EVT_START,  ///< Событие старта или перезапуска игры
   TETRIS_EVT_TICK,  ///< Игровой тик: регулярное событие от таймера (вызывается

@@ -2,6 +2,7 @@
 
 extern "C" {
 #include "s21_snake.h"
+#include "s21_bgame.h"
 }
 
 #include "s21_snake_internals.hpp"
@@ -11,6 +12,8 @@ constexpr int kFieldWidth = 10;
 constexpr int SNAKE_HEAD = 2;
 constexpr int SNAKE_BODY = 1;
 constexpr int APPLE = 3;
+
+static void RemoveScoreFileIfExists();
 
 // Базовые настройки для большинства тестов
 class SnakeTest : public ::testing::Test {
@@ -25,6 +28,7 @@ class SnakeTest : public ::testing::Test {
   void TearDown() override {
     snake_destroy(game);
     game = nullptr;
+    RemoveScoreFileIfExists();
   }
 
   const GameInfo_t* Info() {
@@ -57,6 +61,14 @@ bool FieldEquals(const GameInfo_t* a, const GameInfo_t* b) {
       if (a->field[y][x] != b->field[y][x])
         return false;
   return true;
+}
+
+static void RemoveScoreFileIfExists() {
+  const char* score_file = s21::SNAKE_SCORE_FILE;
+
+  if (access(score_file, F_OK) == 0) {
+      remove(score_file);
+  }
 }
 
 /* ===== API и интерфейс ===== */
@@ -451,7 +463,7 @@ TEST_F(SnakeTest, SelfCollision_WithControlledFood) {
       << "Поле должно замереть после столкновения с телом";
 }
 
-// /* ===== Съедение яблока, рост и счёт ===== */
+/* ===== Съедение яблока, рост и счёт ===== */
 
 // TEST_F(SnakeTest, EatAppleIncreaseScoreAndLength) {
 //   snake_handle_input(game, Start, false);
@@ -537,9 +549,7 @@ TEST_F(SnakeTest, TerminateAndRestart) {
   EXPECT_TRUE(FieldEquals(pre_freeze, post_freeze))
       << "Поле должно быть заморожено после Terminate";
 
-  // 4. Отправляем Start → переход в INIT
-  snake_handle_input(game, Start, false);
-  Tick(1);
+  Tick(60);
   // 5. Отправляем Start -> пепреход в Move
   snake_handle_input(game, Start, false);
   Tick(1);
@@ -550,7 +560,7 @@ TEST_F(SnakeTest, TerminateAndRestart) {
   // 5. Проверяем: новая змейка появилась
   EXPECT_NE(new_x, -1) << "Новая змейка должна появиться после Start";
   EXPECT_TRUE(
-      restarted->field[new_y][new_x] == 1
+      restarted->field[new_y][new_x] == SNAKE_HEAD
   ) << "Голова змейки должна быть на новой позиции";
 
   // 6. Поле изменилось по сравнению с заморожённым состоянием
@@ -572,12 +582,12 @@ TEST_F(SnakeTest, TerminateAndRestart) {
 
 // /* ===== NULL‑безопасность ===== */
 
-// TEST(SnakeNullTest, NullSafeApi) {
-//   snake_handle_input(nullptr, Start, false);
-//   snake_update(nullptr);
-//   const GameInfo_t* info = snake_get_info(nullptr);
-//   EXPECT_EQ(info, nullptr);
-// }
+TEST(SnakeNullTest, NullSafeApi) {
+  snake_handle_input(nullptr, Start, false);
+  snake_update(nullptr);
+  const GameInfo_t* info = snake_get_info(nullptr);
+  EXPECT_EQ(info, nullptr);
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

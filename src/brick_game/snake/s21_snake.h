@@ -10,10 +10,12 @@
  * @note Реализация разделена на три уровня:
  *       - s21_snake.h           — публичный C API (этот файл)
  *       - s21_snake.cpp         — тонкая C обёртка над C++ классом
+ *       - s21_snake_internals.hpp — объявление внутренней логики игры на C++17
  *       - s21_snake_internals.cpp — полная реализация логики на C++17
  * (s21::SnakeGame)
  *
- * @note Интерфейс использует паттерн "непрозрачный указатель" (void*):
+ * @note Интерфейс использует паттерн "непрозрачный указатель" (Opaque Pointer, 
+ *       Pointer to Implementation) (void*):
  *       - Контекст игры создаётся через snake_create()
  *       - Управление — через snake_handle_input(), snake_update()
  *       - Данные — через snake_get_info()
