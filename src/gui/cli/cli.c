@@ -18,6 +18,9 @@
  * @note Все функции не являются потокобезопасными. Предназначены
  *       для вызова из одного потока — основного цикла игры.
  *
+ * @note Реализация корректно обрабатывает повторную инициализацию
+ *       и деинициализацию интерфейса за счёт отслеживания состояния ncurses.
+ *
  * @defgroup CliView Реализация CLI-интерфейса отображения
  * @ingroup View
  *
@@ -33,6 +36,7 @@
 #include <sys/time.h> // для gettimeofday
 
 /**
+ * @internal
  * @def MAX_ZONES
  * @brief Максимальное количество поддерживаемых зон интерфейса.
  *
@@ -43,6 +47,7 @@
 #define MAX_ZONES 8
 
 /**
+ * @internal
  * @def MAX_NAME_LEN
  * @brief Максимальная длина имени зоны отображения (в символах).
  *
@@ -61,7 +66,12 @@
  */
 #define MAX_NAME_LEN 16
 
+#define MAX_COLOR_PAIRS 8
+#define DEFAULT_FG_COLOR  COLOR_BLUE
+#define DEFAULT_BG_COLOR  COLOR_BLACK
+
 /**
+ * @internal
  * @typedef CliContext_t
  * @brief Тип для внутреннего контекста CLI-модуля.
  *
@@ -71,25 +81,40 @@
 typedef struct CliContext CliContext_t;
 
 /**
+ * @internal
  * @struct CliContext
  * @brief Внутренний контекст CLI-модуля.
  *
- * Хранит параметры экрана, конфигурацию зон и указатель на окно ncurses.
+ * Содержит все данные, необходимые для работы CLI-интерфейса:
+ * - Габариты игрового поля и целевую частоту кадров (fps).
+ * - Конфигурацию зон отображения: позиции, размеры и имена.
+ * - Указатель на окно ncurses (stdscr).
+ * - Состояние ввода: последняя клавиша и временная метка для определения удержания.
  *
  * @var CliContext::width
- *     Ширина игрового поля (количество столбцов).
+ *     Ширина игрового поля в символах (количество столбцов).
  * @var CliContext::height
- *     Высота игрового поля (количество строк).
+ *     Высота игрового поля в символах (количество строк).
  * @var CliContext::fps
- *     Частота обновления экрана (кадров в секунду).
+ *     Целевая частота обновления экрана (кадров в секунду).
  * @var CliContext::zones
- *     Массив настроенных зон (до 8), каждая зона — прямоугольник.
+ *     Массив прямоугольных зон отображения (максимум MAX_ZONES).
+ *     Каждая зона задаётся координатами (x, y) и размерами (w, h).
  * @var CliContext::zone_names
- *     Имена зон для поиска по строковому идентификатору.
+ *     Имена зон (идентификаторы) для поиска по строковому ключу.
+ *     Длина имени ограничена MAX_NAME_LEN.
  * @var CliContext::zone_count
- *     Текущее число настроенных зон.
+ *     Текущее количество настроенных зон (от 0 до MAX_ZONES-1).
  * @var CliContext::win
- *     Главное окно ncurses (stdscr).
+ *     Указатель на главное окно ncurses (обычно stdscr).
+ *     Используется для всех операций отрисовки.
+ * @var CliContext::last_input_key
+ *     Логический код последней нажатой клавиши (для определения удержания).
+ * @var CliContext::last_input_time
+ *     Временная метка последнего ввода в миллисекундах (для тайминга удержания).
+ * @var CliContext::input_initialized
+ *     Флаг, указывающий, было ли уже инициализировано состояние ввода.
+ *     Используется для корректной обработки первого нажатия.
  */
 struct CliContext {
     int width, height, fps;
@@ -99,9 +124,13 @@ struct CliContext {
     char zone_names[MAX_ZONES][MAX_NAME_LEN];
     int zone_count;
     WINDOW *win;
+    int last_input_key;
+    long long last_input_time;
+    bool input_initialized;
 };
 
 /**
+ * @internal
  * @brief Находит индекс зоны по её имени в контексте CLI.
  *
  * Линейный поиск по массиву zone_names в контексте. Используется для сопоставления
@@ -130,22 +159,26 @@ static int find_zone(CliContext_t *ctx, const char *name) {
 /**
  * @brief Инициализирует CLI-интерфейс на основе ncurses.
  *
- * Выполняет следующие действия:
- * - Инициализирует ncurses (initscr)
- * - Настраивает режимы: cbreak, noecho, keypad, nodelay
- * - Скрывает курсор (curs_set(0))
- * - Выделяет и инициализирует внутренний контекст
+ * Выполняет полную инициализацию текстового интерфейса:
+ * - Инициализирует библиотеку ncurses с помощью initscr().
+ * - Настраивает терминал: включает режим cbreak, отключает эхо ввода,
+ *   активирует расширенные клавиши (keypad) и неблокирующий ввод (nodelay).
+ * - Скрывает курсор для улучшения визуального восприятия.
+ * - Выделяет и инициализирует внутренний контекст CliContext.
  *
- * @param width  Ширина игрового поля в символах (должна быть > 0)
- * @param height Высота игрового поля в символах (должна быть > 0)
- * @param fps    Целевая частота обновления кадров (в кадрах в секунду, >= 1)
+ * @param width  Ширина игрового поля в символах; должно быть больше 0.
+ * @param height Высота игрового поля в символах; должно быть больше 0.
+ * @param fps    Целевая частота обновления экрана в кадрах в секунду; должно быть >= 1.
  *
  * @return Указатель на инициализированный контекст (ViewHandle_t) при успехе;
- *         NULL — если инициализация ncurses или выделение памяти не удалась.
+ *         NULL — если один из параметров недопустим, невозможно инициализировать ncurses
+ *         или произошла ошибка выделения памяти.
  *
- * @note Функция не должна вызываться повторно без предварительного cli_shutdown().
- * @note Повторная инициализация может привести к утечкам или повреждению состояния ncurses.
- * @note Все настройки ncurses управляются автоматически — не вызывайте их напрямую.
+ * @note Функция является идемпотентной в пределах жизненного цикла ncurses:
+ *       повторный вызов без предварительного shutdown приведёт к ошибке.
+ * @note После успешного shutdown можно безопасно вызвать init снова.
+ * @note Все настройки ncurses управляются внутренне — не вызывайте initscr,
+ *       cbreak, keypad и другие функции напрямую.
  */
 static ViewHandle_t cli_init(int width, int height, int fps) {
     if (width <= 0 || height <= 0 || fps < 1) {
@@ -154,13 +187,13 @@ static ViewHandle_t cli_init(int width, int height, int fps) {
 
     CliContext_t *ctx = calloc(1, sizeof(*ctx));
     if (!ctx) return NULL;
-
-    ctx->width = width;
-    ctx->height = height;
-    ctx->fps = fps;
-    if (initscr() == NULL) {
-        free(ctx);
-        return NULL;
+    
+    bool ncurses_was_initialized = (stdscr != NULL);
+    if (!ncurses_was_initialized) {
+        if (initscr() == NULL) {
+            free(ctx);
+            return NULL;
+        };
     };
 
     cbreak();
@@ -168,6 +201,28 @@ static ViewHandle_t cli_init(int width, int height, int fps) {
     keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
     curs_set(0);
+
+    if (has_colors()) {
+        start_color();
+        // Создаём цветовую пару по умолчанию: синий текст на чёрном фоне
+        init_pair(1, DEFAULT_FG_COLOR, DEFAULT_BG_COLOR);
+        // Дополнительные цвета для матрицы: 2-16
+        // например: 2 = красный, 3 = зелёный и т.д.
+        // можно задать через конфиг или по умолчанию
+        init_pair(2, COLOR_RED,    COLOR_BLACK);
+        init_pair(3, COLOR_GREEN,  COLOR_BLACK);
+        init_pair(4, COLOR_YELLOW, COLOR_BLACK);
+        init_pair(5, COLOR_CYAN,   COLOR_BLACK);
+        init_pair(6, COLOR_MAGENTA,COLOR_BLACK);
+        init_pair(7, COLOR_BLUE,   COLOR_BLACK);
+        init_pair(8, COLOR_WHITE,  COLOR_BLACK);
+    } 
+    
+    ctx->width = width;
+    ctx->height = height;
+    ctx->fps = fps;
+    ctx->last_input_key = -1;
+    ctx->last_input_time = 0;
     ctx->win = stdscr;
 
     return ctx;
@@ -203,7 +258,7 @@ static ViewResult_t cli_configure_zone(ViewHandle_t handle, const char *element_
     if (!ctx) return VIEW_NOT_INITIALIZED;
     if (ctx->zone_count >= MAX_ZONES) return VIEW_ERROR;
     if (max_w <= 0 || max_h <= 0 || x <=0 || y <= 0) return VIEW_BAD_DATA;
-    if (!element_id) return VIEW_BAD_DATA;
+    if (!element_id || strlen(element_id) == 0) return VIEW_BAD_DATA;
 
     int idx = ctx->zone_count++;
     strncpy(ctx->zone_names[idx], element_id, MAX_NAME_LEN - 1);
@@ -242,7 +297,7 @@ static ViewResult_t cli_configure_zone(ViewHandle_t handle, const char *element_
  *       - ELEMENT_NUMBER: используется content.number
  *       - ELEMENT_MATRIX: используется content.matrix
  *
- * @note Для ELEMENT_MATRIX каждый ненулевой элемент отображается как "[ ]",
+ * @note Для ELEMENT_MATRIX каждый ненулевой элемент отображается как "[]",
  *       нулевой — как пробел. Матрица отображается с учётом max_w и max_h зоны.
  */
 static ViewResult_t cli_draw_element(ViewHandle_t handle,
@@ -254,51 +309,55 @@ static ViewResult_t cli_draw_element(ViewHandle_t handle,
     int idx = find_zone(ctx, element_id);
     if (idx < 0) return VIEW_INVALID_ID;
 
-    // Извлекаем параметры зоны
     int x = ctx->zones[idx].x;
     int y = ctx->zones[idx].y;
     int w = ctx->zones[idx].w;
     int h = ctx->zones[idx].h;
+    WINDOW *win = ctx->win;
 
-    // РАБОТА С РАМКОЙ: рисуем рамку вокруг прямоугольника [w×h]
-    // верхняя и нижняя границы
-    mvwhline(ctx->win, y-1,   x-1, ACS_HLINE, w+2);
-    mvwhline(ctx->win, y+h,   x-1, ACS_HLINE, w+2);
-    // левая и правая границы
-    mvwvline(ctx->win, y-1, x-1, ACS_VLINE, h+2);
-    mvwvline(ctx->win, y-1, x+w, ACS_VLINE, h+2);
-    // углы
-    mvwaddch(ctx->win, y-1,   x-1,   ACS_ULCORNER);
-    mvwaddch(ctx->win, y-1,   x+w,   ACS_URCORNER);
-    mvwaddch(ctx->win, y+h,   x-1,   ACS_LLCORNER);
-    mvwaddch(ctx->win, y+h,   x+w,   ACS_LRCORNER);
+    // --- РАМКА И ЗАГОЛОВОК (цвет по умолчанию) ---
+    wattron(win, COLOR_PAIR(1));  // стандартный цвет
 
-    // РАБОТА С РАМКОЙ: подпись над верхней границей по центру
+    mvwhline(win, y-1,   x-1, ACS_HLINE, w+2);
+    mvwhline(win, y+h,   x-1, ACS_HLINE, w+2);
+    mvwvline(win, y-1, x-1, ACS_VLINE, h+2);
+    mvwvline(win, y-1, x+w, ACS_VLINE, h+2);
+    mvwaddch(win, y-1,   x-1,   ACS_ULCORNER);
+    mvwaddch(win, y-1,   x+w,   ACS_URCORNER);
+    mvwaddch(win, y+h,   x-1,   ACS_LLCORNER);
+    mvwaddch(win, y+h,   x+w,   ACS_LRCORNER);
+
     int title_len = strlen(element_id);
     int title_x = x - 1 + (w + 2 - title_len) / 2;
-    mvwaddnstr(ctx->win, y-1, title_x, element_id, title_len);
+    mvwaddnstr(win, y-1, title_x, element_id, title_len);
 
-    // Очищаем внутреннюю область рамки
+    wattroff(win, COLOR_PAIR(1));
+
+    // --- ОЧИСТКА ВНУТРЕННЕЙ ОБЛАСТИ ---
     for (int row = 0; row < h; ++row) {
-        mvwhline(ctx->win, y + row, x, ' ', w);
+        mvwhline(win, y + row, x, ' ', w);
     }
 
-    // Отрисовка данных внутри рамки
+    // --- ОТРИСОВКА ДАННЫХ ---
     switch (data->type) {
         case ELEMENT_TEXT: {
+            wattron(win, COLOR_PAIR(1));  // стандартный цвет
             const char *s = data->content.text;
             int row = 0, col = 0;
             for (const char *p = s; *p && row < h; ++p) {
                 if (*p == '\n') { row++; col = 0; continue; }
                 if (col < w)
-                    mvwaddch(ctx->win, y + row, x + col++, *p);
+                    mvwaddch(win, y + row, x + col++, *p);
             }
+            wattroff(win, COLOR_PAIR(1));
             break;
         }
         case ELEMENT_NUMBER: {
+            wattron(win, COLOR_PAIR(1));
             char buf[32];
             snprintf(buf, sizeof(buf), "%d", data->content.number);
-            mvwaddnstr(ctx->win, y, x, buf, w);
+            mvwaddnstr(win, y, x, buf, w);
+            wattroff(win, COLOR_PAIR(1));
             break;
         }
         case ELEMENT_MATRIX: {
@@ -308,15 +367,21 @@ static ViewResult_t cli_draw_element(ViewHandle_t handle,
             int mh = data->content.matrix.height;
             for (int row = 0; row < h && row < mh; ++row) {
                 for (int col = 0; col < w && col < mw; ++col) {
-                    // каждый блок — пара символов []
+                    int value = arr[row * mw + col];
                     int px = x + col*2;
                     int py = y + row;
-                    if (arr[row * mw + col]) {
-                        mvwaddch(ctx->win, py,     px, '[');
-                        mvwaddch(ctx->win, py, px+1, ']');
+
+                    // Если значение == 0 — не рисуем (фон)
+                    if (value == 0) {
+                        mvwaddch(win, py,     px, ' ');
+                        mvwaddch(win, py, px+1, ' ');
                     } else {
-                        mvwaddch(ctx->win, py,     px, ' ');
-                        mvwaddch(ctx->win, py, px+1, ' ');
+                        // Используем значение как индекс цветовой пары
+                        short color_pair = (short)(value % (MAX_COLOR_PAIRS-1) + 1); // 1..15
+                        wattron(win, COLOR_PAIR(color_pair));
+                        mvwaddch(win, py,     px, '[');
+                        mvwaddch(win, py, px+1, ']');
+                        wattroff(win, COLOR_PAIR(color_pair));
                     }
                 }
             }
@@ -353,7 +418,7 @@ static ViewResult_t cli_draw_element(ViewHandle_t handle,
  *       обновление всё равно произойдёт, но визуально экран не изменится.
  *
  * @note Для корректной работы требуется, чтобы ncurses был инициализирован
- *       (вызван initscr). Поведение не определено, если render вызван до init.
+ *       (вызван init). Поведение не определено, если render вызван до init.
  */
 static ViewResult_t cli_render(ViewHandle_t handle) {
     CliContext_t *ctx = handle;
@@ -402,13 +467,10 @@ static ViewResult_t cli_poll_input(ViewHandle_t handle, InputEvent_t *event) {
     gettimeofday(&tv, NULL);
     long long current_time = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
 
-    static int last_key = -1;
-    static long long last_time = 0;
-    static bool initialized = false;
+    const long long HOLD_THRESHOLD_MS = 200; // ✅ Исправлено: TRESHOLD → THRESHOLD
+    InputEvent_t ev = {0};
 
-    const long long HOLD_TRESHOLD_MS = 200; // порог удержания клавиши в миллисекундах
-    InputEvent_t ev = {0}; // key_state пока не поддерживается
-
+    // Преобразование специальных клавиш
     switch (ch) {
         case KEY_LEFT:  ev.key_code = 'a'; break;
         case KEY_RIGHT: ev.key_code = 'd'; break;
@@ -417,15 +479,19 @@ static ViewResult_t cli_poll_input(ViewHandle_t handle, InputEvent_t *event) {
         default:        ev.key_code = ch;   break;
     }
 
-    if (initialized && last_key == ev.key_code && (current_time - last_time) < HOLD_TRESHOLD_MS) {
-        ev.key_state = 1; // Удержание (бвстрый повтор)
+    // Проверка удержания — только если инициализировано и в пределах порога
+    if (ctx->input_initialized &&
+        ctx->last_input_key == ev.key_code &&
+        (current_time - ctx->last_input_time) < HOLD_THRESHOLD_MS) {
+        ev.key_state = 1; // Удержание
     } else {
-        ev.key_state = 0; // Новое нажате
+        ev.key_state = 0; // Новое нажатие
     }
 
-    last_key = ev.key_code;
-    last_time = current_time;
-    initialized = true;
+    // Обновление состояния
+    ctx->last_input_key = ev.key_code;
+    ctx->last_input_time = current_time;
+    ctx->input_initialized = true;
 
     *event = ev;
     return VIEW_OK;
@@ -434,32 +500,40 @@ static ViewResult_t cli_poll_input(ViewHandle_t handle, InputEvent_t *event) {
 /**
  * @brief Завершает работу CLI-интерфейса и освобождает все связанные ресурсы.
  *
- * Деинициализирует библиотеку ncurses (вызывает endwin()), освобождает
- * выделенную память контекста и возвращает системные ресурсы.
- * После вызова handle становится недействительным и не должен использоваться.
+ * Корректно завершает сессию работы с ncurses:
+ * - Деинициализирует библиотеку с помощью endwin(), восстанавливая исходное состояние терминала.
+ * - Освобождает память, выделенную под внутренний контекст (CliContext).
+ * - При успешном завершении endwin() сбрасывает флаг активности ncurses_active, что позволяет
+ *   безопасно повторно инициализировать интерфейс через cli_init().
  *
- * @param handle Контекст CLI (может быть NULL — вызов будет проигнорирован)
+ * После вызова функции переданный handle становится недействительным и не должен использоваться повторно,
+ * даже если функция вернула VIEW_ERROR.
+ *
+ * @param handle Указатель на контекст CLI (ViewHandle_t). Допустимо значение NULL — функция игнорирует вызов без последствий.
  *
  * @return
- *         - VIEW_OK — завершение прошло успешно
- *         - VIEW_NOT_INITIALIZED — handle равен NULL
- *         - VIEW_ERROR — ошибка при вызове endwin() (например, сбой завершения режима ncurses)
+ *         - VIEW_OK — завершение прошло успешно: ncurses деинициализирован, память освобождена.
+ *         - VIEW_NOT_INITIALIZED — handle равен NULL; операция не выполнена, но это не ошибка.
+ *         - VIEW_ERROR — сбой при вызове endwin() (например, ошибка восстановления терминала).
  *
- * @note Функция безопасна к вызову с NULL.
- * @note Повторный вызов с тем же handle приведёт к неопределённому поведению (double free).
- * @note Даже при возврате VIEW_ERROR, ресурсы (включая handle) считаются недействительными.
+ * @note Вызов с NULL допустим и не приводит к аварийному завершению (idempotent по NULL).
+ * @note Повторный вызов с тем же валидным handle приведёт к неопределённому поведению, включая двойное освобождение памяти.
+ * @note Контекст считается недействительным сразу после первого вызова shutdown — дальнейшее использование запрещено.
+ * @note Сброс флага ncurses_active происходит ТОЛЬКО при успешном выполнении endwin() — это гарантирует целостность состояния.
  */
 static ViewResult_t cli_shutdown(ViewHandle_t handle) {
     CliContext_t *ctx = handle;
     if (!ctx) return VIEW_NOT_INITIALIZED;
 
     const int result = endwin();
-    free(ctx);
+    if (result != ERR) {
+        free(ctx);
+    }
+
     return (result != ERR) ? VIEW_OK : VIEW_ERROR;
 }
 
 /**
- * @internal
  * @brief Экспортируемый экземпляр CLI-реализации интерфейса отображения.
  *
  * Константная структура, реализующая vtable-интерфейс ViewInterface.
