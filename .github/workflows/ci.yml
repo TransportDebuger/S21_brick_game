@@ -12,7 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install build-essential doxygen graphviz
+        sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
     
     - name: Build library
       id: build_step
@@ -29,7 +29,7 @@ jobs:
     
     - name: Upload artifacts
       if: env.BUILD_STATUS == 'success'
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: fsm-library
         path: src/fsm/build/
@@ -37,7 +37,7 @@ jobs:
 
     - name: Upload build logs
       if: env.BUILD_STATUS == 'failure'
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: build-errors
         path: build_logs/
@@ -59,7 +59,7 @@ jobs:
         # Получаем URL артефакта с ошибками
         ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/suites/${{ github.run_id }}/artifacts?query=build-errors"
         
-        TEXT="❌ Ошибка сборки!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nЛоги ошибок: %0A${ARTIFACT_URL}\n\nСсылка на логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        TEXT="❌ Сборка провалена!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nЛоги ошибок: %0A${ARTIFACT_URL}\n\nСсылка на логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         
         curl -s --max-time 10 -d "chat_id=439790276&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7135286706:AAElFGLW2is0wRDSh8CRf04ear2b34EMMns/sendMessage"
 
