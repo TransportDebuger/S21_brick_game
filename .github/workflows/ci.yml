@@ -32,7 +32,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: fsm-library
-        path: src/fsm/build/
+        path: |
+          src/fsm/build/
+          src/fsm/s21_fsm.h
         retention-days: 5
 
     - name: Upload build logs
@@ -146,7 +148,7 @@ jobs:
     - name: Send Telegram Notification (Docs Success - No Direct URL)
       if: env.DOCS_STATUS == 'success' && (env.DOCS_API_URL == '' || env.DOCS_API_URL == null)
       run: |
-        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nДокументация доступна в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать документацию можно по кнопке 'fsm-documentation' в интерфейсе GitHub.\n\nДокументация генерируется только после успешной сборки."
+        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт документации доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${DOCS_ARTIFACT_ID}\n\nСсылка действует 5 дней.\n\nДокументация генерируется только после успешной сборки."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
