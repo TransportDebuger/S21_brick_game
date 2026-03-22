@@ -159,9 +159,9 @@ jobs:
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
 
-  test:
-    needs: build
+  linter_tests:
     runs-on: ubuntu-latest
+    needs: build
     
     steps:
     - uses: actions/checkout@v2
@@ -169,7 +169,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
+        sudo apt-get install clang-format cppcheck
     
     - name: Run linter tests
       id: linter_test
@@ -178,6 +178,28 @@ jobs:
         make linter-test
       continue-on-error: true
     
+    - name: Set linter status
+      run: |
+        if [ "${{ steps.linter_test.outcome }}" = "success" ]; then
+          echo "LINTER_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ steps.linter_test.outcome }}" = "failure" ]; then
+          echo "LINTER_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "LINTER_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
+
+  unit_tests:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential check
+    
     - name: Run unit tests
       id: unit_test
       run: |
@@ -185,12 +207,56 @@ jobs:
         make unit-test
       continue-on-error: true
     
+    - name: Set unit test status
+      run: |
+        if [ "${{ steps.unit_test.outcome }}" = "success" ]; then
+          echo "UNIT_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ steps.unit_test.outcome }}" = "failure" ]; then
+          echo "UNIT_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "UNIT_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
+
+  memory_tests:
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install valgrind
+    
     - name: Run memory tests
       id: mem_test
       run: |
         cd src/fsm
         make mem-test
       continue-on-error: true
+    
+    - name: Set memory test status
+      run: |
+        if [ "${{ steps.mem_test.outcome }}" = "success" ]; then
+          echo "MEM_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ steps.mem_test.outcome }}" = "failure" ]; then
+          echo "MEM_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "MEM_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install lcov
     
     - name: Generate coverage report
       run: |
@@ -201,39 +267,73 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: src/fsm/tests/coverage/coverage.info
+    
+    - name: Set coverage status
+      run: |
+        echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
 
   notify:
-    needs: [build, test]
+    needs: [build, linter_tests, unit_tests, memory_tests, coverage]
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
     
-    - name: Determine overall status
+    - name: Determine test statuses
       id: status
       run: |
-        build_status="success"
-        test_status="success"
-        
-        if [ "${{ needs.build.result }}" = "failure" ]; then
-          build_status="failure"
-        fi
-        
-        if [ "${{ needs.test.result }}" = "failure" ]; then
-          test_status="failure"
-        fi
-        
-        echo "build_status=$build_status" >> $GITHUB_ENV
-        echo "test_status=$test_status" >> $GITHUB_ENV
-        
-        if [ "$build_status" = "success" ] && [ "$test_status" = "success" ]; then
-          echo "overall_status=success" >> $GITHUB_ENV
+        # Build status
+        if [ "${{ needs.build.result }}" = "success" ]; then
+          echo "BUILD_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.build.result }}" = "failure" ]; then
+          echo "BUILD_STATUS=FAILED" >> $GITHUB_ENV
         else
-          echo "overall_status=failure" >> $GITHUB_ENV
+          echo "BUILD_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
+        
+        # Linter status (passed through from linter_tests job)
+        echo "LINTER_STATUS=${{ needs.linter_tests.outputs.LINTER_STATUS }}" >> $GITHUB_ENV
+        
+        # Unit test status (passed through from unit_tests job)
+        echo "UNIT_STATUS=${{ needs.unit_tests.outputs.UNIT_STATUS }}" >> $GITHUB_ENV
+        
+        # Memory test status (passed through from memory_tests job)
+        echo "MEM_STATUS=${{ needs.memory_tests.outputs.MEM_STATUS }}" >> $GITHUB_ENV
+        
+        # Coverage status
+        if [ "${{ needs.coverage.result }}" = "success" ]; then
+          echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.coverage.result }}" = "failure" ]; then
+          echo "COVERAGE_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "COVERAGE_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
+        
+        # Overall status - success only if all tests passed or were skipped
+        overall_status="success"
+        for status in "$BUILD_STATUS" "$LINTER_STATUS" "$UNIT_STATUS" "$MEM_STATUS" "$COVERAGE_STATUS"; do
+          if [ "$status" = "FAILED" ]; then
+            overall_status="failure"
+            break
+          fi
+        done
+        echo "OVERALL_STATUS=$overall_status" >> $GITHUB_ENV
     
     - name: Send Telegram Notification
       run: |
+        TEXT="Результаты тестирования CI/CD\n\n"
+        TEXT+="Сборка: ${BUILD_STATUS}\n"
+        TEXT+="Стилевые тесты: ${LINTER_STATUS}\n"
+        TEXT+="Юнит-тесты: ${UNIT_STATUS}\n"
+        TEXT+="Тесты памяти: ${MEM_STATUS}\n"
+        TEXT+="Покрытие кода: ${COVERAGE_STATUS}\n\n"
+        
+        if [ "${OVERALL_STATUS}" = "success" ]; then
+          TEXT+="✅ Все тесты пройдены успешно!"
+        else
+          TEXT+="❌ Один или несколько тестов завершились с ошибками."
+        fi
+        
         chmod +x ./.github/scripts/telegram-notify.sh
-        ./.github/scripts/telegram-notify.sh ${{ env.overall_status }}
+        ./.github/scripts/telegram-notify.sh "custom" "$TEXT"
