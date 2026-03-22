@@ -1,0 +1,27 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libcheck-dev valgrind lcov doxygen graphviz clang-format cppcheck
+    
+    - name: Build and test
+      run: |
+        cd src/fsm
+        make test
+        make build
+        make dvi
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./tests/coverage/coverage.info
