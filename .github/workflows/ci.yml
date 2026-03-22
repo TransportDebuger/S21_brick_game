@@ -32,9 +32,11 @@ jobs:
     - name: Send Telegram Notification (Success)
       if: steps.build_test.outcome == 'success'
       run: |
+        chmod +x ./.github/scripts/telegram-notify.sh
         ./.github/scripts/telegram-notify.sh success
 
     - name: Send Telegram Notification (Failure)
       if: steps.build_test.outcome == 'failure'
       run: |
+        chmod +x ./.github/scripts/telegram-notify.sh
         ./.github/scripts/telegram-notify.sh failure
