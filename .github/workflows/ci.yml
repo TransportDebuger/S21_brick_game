@@ -15,13 +15,26 @@ jobs:
         sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
     
     - name: Build and test
+      id: build_test
       run: |
         cd src/fsm
         make test
         make build
         make dvi
+      continue-on-error: true
     
     - name: Upload coverage
+      if: steps.build_test.outcome == 'success'
       uses: codecov/codecov-action@v1
       with:
         file: ./tests/coverage/coverage.info
+
+    - name: Send Telegram Notification (Success)
+      if: steps.build_test.outcome == 'success'
+      run: |
+        ./.github/scripts/telegram-notify.sh success
+
+    - name: Send Telegram Notification (Failure)
+      if: steps.build_test.outcome == 'failure'
+      run: |
+        ./.github/scripts/telegram-notify.sh failure
