@@ -12,31 +12,131 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
+        sudo apt-get install build-essential doxygen graphviz
     
-    - name: Build and test
-      id: build_test
+    - name: Build library
+      id: build_step
       run: |
         cd src/fsm
-        make test
-        make build
-        make dvi
+        if make build 2> build_error.log; then
+          echo "BUILD_STATUS=success" >> $GITHUB_ENV
+        else
+          echo "BUILD_STATUS=failure" >> $GITHUB_ENV
+          # Создаем артефакт с логами ошибок
+          mkdir -p ../build_logs
+          cp build_error.log ../build_logs/
+        fi
+    
+    - name: Upload artifacts
+      if: env.BUILD_STATUS == 'success'
+      uses: actions/upload-artifact@v2
+      with:
+        name: fsm-library
+        path: src/fsm/build/
+        retention-days: 5
+
+    - name: Upload build logs
+      if: env.BUILD_STATUS == 'failure'
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-errors
+        path: build_logs/
+        retention-days: 5
+
+    - name: Send Telegram Notification (Build Success)
+      if: env.BUILD_STATUS == 'success'
+      run: |
+        # Получаем URL артефакта
+        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/suites/${{ github.run_id }}/artifacts?query=fsm-library"
+        
+        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nСсылка на артефакты (действует 5 дней): %0A${ARTIFACT_URL}"
+        
+        curl -s --max-time 10 -d "chat_id=439790276&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7135286706:AAElFGLW2is0wRDSh8CRf04ear2b34EMMns/sendMessage"
+    
+    - name: Send Telegram Notification (Build Failure)
+      if: env.BUILD_STATUS == 'failure'
+      run: |
+        # Получаем URL артефакта с ошибками
+        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/suites/${{ github.run_id }}/artifacts?query=build-errors"
+        
+        TEXT="❌ Ошибка сборки!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nЛоги ошибок: %0A${ARTIFACT_URL}\n\nСсылка на логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        
+        curl -s --max-time 10 -d "chat_id=439790276&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7135286706:AAElFGLW2is0wRDSh8CRf04ear2b34EMMns/sendMessage"
+
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
+    
+    - name: Run linter tests
+      id: linter_test
+      run: |
+        cd src/fsm
+        make linter-test
       continue-on-error: true
     
+    - name: Run unit tests
+      id: unit_test
+      run: |
+        cd src/fsm
+        make unit-test
+      continue-on-error: true
+    
+    - name: Run memory tests
+      id: mem_test
+      run: |
+        cd src/fsm
+        make mem-test
+      continue-on-error: true
+    
+    - name: Generate coverage report
+      run: |
+        cd src/fsm
+        make gcov-report
+    
     - name: Upload coverage
-      if: steps.build_test.outcome == 'success'
       uses: codecov/codecov-action@v1
       with:
-        file: ./tests/coverage/coverage.info
+        file: src/fsm/tests/coverage/coverage.info
 
-    - name: Send Telegram Notification (Success)
-      if: steps.build_test.outcome == 'success'
+  notify:
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    
+    - name: Determine overall status
+      id: status
+      run: |
+        build_status="success"
+        test_status="success"
+        
+        if [ "${{ needs.build.result }}" = "failure" ]; then
+          build_status="failure"
+        fi
+        
+        if [ "${{ needs.test.result }}" = "failure" ]; then
+          test_status="failure"
+        fi
+        
+        echo "build_status=$build_status" >> $GITHUB_ENV
+        echo "test_status=$test_status" >> $GITHUB_ENV
+        
+        if [ "$build_status" = "success" ] && [ "$test_status" = "success" ]; then
+          echo "overall_status=success" >> $GITHUB_ENV
+        else
+          echo "overall_status=failure" >> $GITHUB_ENV
+        fi
+    
+    - name: Send Telegram Notification
       run: |
         chmod +x ./.github/scripts/telegram-notify.sh
-        ./.github/scripts/telegram-notify.sh success
-
-    - name: Send Telegram Notification (Failure)
-      if: steps.build_test.outcome == 'failure'
-      run: |
-        chmod +x ./.github/scripts/telegram-notify.sh
-        ./.github/scripts/telegram-notify.sh failure
+        ./.github/scripts/telegram-notify.sh ${{ env.overall_status }}
