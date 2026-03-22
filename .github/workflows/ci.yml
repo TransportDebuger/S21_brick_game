@@ -47,9 +47,9 @@ jobs:
       if: env.BUILD_STATUS == 'success'
       run: |
         # Получаем URL артефакта
-        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/suites/${{ github.run_id }}/artifacts?query=fsm-library"
+        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts"
         
-        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nСсылка на артефакты (действует 5 дней): %0A${ARTIFACT_URL}"
+        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nАртефакты сборки: %0A${ARTIFACT_URL}\n\nНажмите на кнопку 'Действия' в репозитории и выберите последний запуск CI для скачивания артефактов."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
@@ -57,7 +57,7 @@ jobs:
       if: env.BUILD_STATUS == 'failure'
       run: |
         # Получаем URL артефакта с ошибками
-        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/suites/${{ github.run_id }}/artifacts?query=build-errors"
+        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts"
         
         TEXT="❌ Сборка провалена!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nЛоги ошибок: %0A${ARTIFACT_URL}\n\nСсылка на логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         
