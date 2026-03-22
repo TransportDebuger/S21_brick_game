@@ -43,17 +43,115 @@ jobs:
         path: build_logs/
         retention-days: 5
 
-    - name: Send Telegram Notification (Build Success)
+    - name: Get artifact download URL
       if: env.BUILD_STATUS == 'success'
+      id: get_artifact_url
       run: |
-        TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY}%0A%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакты сборки доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать артефакты можно по кнопке 'fsm-library' в интерфейсе GitHub."
+        # Получаем ID последнего запуска
+        RUN_ID=${{ github.run_id }}
+        
+        # Получаем список артефактов
+        ARTIFACTS_RESPONSE=$(curl -s -X GET \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts")
+        
+        # Извлекаем URL для артефакта fsm-library
+        ARTIFACT_URL=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="fsm-library") | .archive_download_url')
+        
+        if [ -n "$ARTIFACT_URL" ] && [ "$ARTIFACT_URL" != "null" ]; then
+          echo "ARTIFACT_DOWNLOAD_URL=$ARTIFACT_URL" >> $GITHUB_ENV
+        fi
+    
+    - name: Send Telegram Notification (Build Success)
+      if: env.BUILD_STATUS == 'success' && env.ARTIFACT_DOWNLOAD_URL != ''
+      run: |
+        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nСкачать артефакты сборки: %0A${{ env.ARTIFACT_DOWNLOAD_URL }}\n\nСсылка действует 5 дней.\n\nАртефакты также доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'."
+        
+        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+    
+    - name: Send Telegram Notification (Build Success - No Direct URL)
+      if: env.BUILD_STATUS == 'success' && (env.ARTIFACT_DOWNLOAD_URL == '' || env.ARTIFACT_DOWNLOAD_URL == null)
+      run: |
+        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакты сборки доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать артефакты можно по кнопке 'fsm-library' в интерфейсе GitHub."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Build Failure)
       if: env.BUILD_STATUS == 'failure'
       run: |
-        TEXT="❌ Сборка провалена!%0A%0AПроект: ${GITHUB_REPOSITORY}%0A%0AВетка: ${GITHUB_REF_NAME}%0A%0AЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.%0A%0AПодробные логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        TEXT="❌ Сборка провалена!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.\n\nПодробные логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        
+        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+
+  docs:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install doxygen graphviz
+    
+    - name: Generate documentation
+      if: needs.build.result == 'success'
+      run: |
+        cd src/fsm
+        if make dvi 2> docs_error.log; then
+          echo "DOCS_STATUS=success" >> $GITHUB_ENV
+        else
+          echo "DOCS_STATUS=failure" >> $GITHUB_ENV
+        fi
+    
+    - name: Upload documentation
+      if: env.DOCS_STATUS == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: fsm-documentation
+        path: src/fsm/docs/
+        retention-days: 5
+
+    - name: Get docs artifact URL
+      if: env.DOCS_STATUS == 'success'
+      id: get_docs_url
+      run: |
+        # Получаем ID последнего запуска
+        RUN_ID=${{ github.run_id }}
+        
+        # Получаем список артефактов
+        ARTIFACTS_RESPONSE=$(curl -s -X GET \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts")
+        
+        # Извлекаем URL для артефакта fsm-documentation
+        ARTIFACT_URL=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="fsm-documentation") | .archive_download_url')
+        
+        if [ -n "$ARTIFACT_URL" ] && [ "$ARTIFACT_URL" != "null" ]; then
+          echo "DOCS_DOWNLOAD_URL=$ARTIFACT_URL" >> $GITHUB_ENV
+        fi
+    
+    - name: Send Telegram Notification (Docs Success)
+      if: env.DOCS_STATUS == 'success' && env.DOCS_DOWNLOAD_URL != ''
+      run: |
+        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nСкачать документацию: %0A${{ env.DOCS_DOWNLOAD_URL }}\n\nСсылка действует 5 дней.\n\nДокументация также доступна в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nДокументация генерируется только после успешной сборки."
+        
+        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+    
+    - name: Send Telegram Notification (Docs Success - No Direct URL)
+      if: env.DOCS_STATUS == 'success' && (env.DOCS_DOWNLOAD_URL == '' || env.DOCS_DOWNLOAD_URL == null)
+      run: |
+        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nДокументация доступна в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать документацию можно по кнопке 'fsm-documentation' в интерфейсе GitHub.\n\nДокументация генерируется только после успешной сборки."
+        
+        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+    
+    - name: Send Telegram Notification (Docs Failure)
+      if: env.DOCS_STATUS == 'failure'
+      run: |
+        TEXT="❌ Ошибка генерации документации!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nПодробные логи генерации документации: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\n\nДокументация генерируется только после успешной сборки."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
 
