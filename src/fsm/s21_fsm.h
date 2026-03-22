@@ -239,7 +239,7 @@ bool fsm_init(fsm_t *fsm, fsm_context_t ctx,
               fsm_state_t start_state);
 
 /**
- * @brief Освободить ресурсы FSM (заглушка).
+ * @brief Освободить ресурсы FSM.
  *
  * В текущей реализации не делает ничего.
  * Добавлен для симметрии API и будущего расширения.
