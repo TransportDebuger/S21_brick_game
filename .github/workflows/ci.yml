@@ -46,20 +46,14 @@ jobs:
     - name: Send Telegram Notification (Build Success)
       if: env.BUILD_STATUS == 'success'
       run: |
-        # Получаем URL артефакта
-        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts"
-        
-        TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY} %0A%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакты сборки: %0A${ARTIFACT_URL} %0A%0AНажмите на кнопку 'Действия' в репозитории и выберите последний запуск CI для скачивания артефактов."
+        TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY}%0A%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакты сборки доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать артефакты можно по кнопке 'fsm-library' в интерфейсе GitHub."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Build Failure)
       if: env.BUILD_STATUS == 'failure'
       run: |
-        # Получаем URL артефакта с ошибками
-        ARTIFACT_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts"
-        
-        TEXT="❌ Сборка провалена!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\nЛоги ошибок: %0A${ARTIFACT_URL}\n\nСсылка на логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        TEXT="❌ Сборка провалена!%0A%0AПроект: ${GITHUB_REPOSITORY}%0A%0AВетка: ${GITHUB_REF_NAME}%0A%0AЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.%0A%0AПодробные логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
 
