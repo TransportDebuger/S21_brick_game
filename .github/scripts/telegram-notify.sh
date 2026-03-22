@@ -22,13 +22,28 @@ TEXT="Deploy status: $MESSAGE %0A%0AProject: $PROJECT_NAME %0AURL: $RUN_URL %0AB
 
 URL="https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage"
 
-# Отправляем сообщение в Telegram
-curl -s --max-time $TIME -d "chat_id=$TELEGRAM_USER_ID&disable_web_page_preview=1&text=$TEXT" $URL > /dev/null
+# Отправляем сообщение в Telegram с подробным логированием
+echo "Отправка уведомления в Telegram..."
+echo "URL: $URL"
+echo "Text: $TEXT"
+
+response=$(curl -s --max-time $TIME -w " %{http_code}" -d "chat_id=$TELEGRAM_USER_ID&disable_web_page_preview=1&text=$TEXT" $URL)
+
+echo "Raw response: $response"
+
+# Извлекаем HTTP код и тело ответа
+http_code=$(echo $response | awk '{print $NF}')
+response_body=$(echo $response | sed 's/ [0-9]\{3\}$//')
+
+echo "HTTP Code: $http_code"
+echo "Response Body: $response_body"
 
 # Проверяем результат отправки
-if [ $? -eq 0 ]; then
-    echo "Уведомление успешно отправлено в Telegram"
+if [ $http_code -eq 200 ]; then
+    echo "✅ Уведомление успешно отправлено в Telegram"
+    exit 0
 else
-    echo "Ошибка при отправке уведомления в Telegram"
+    echo "❌ Ошибка при отправке уведомления в Telegram"
+    echo "Текст ошибки: $response_body"
     exit 1
 fi
