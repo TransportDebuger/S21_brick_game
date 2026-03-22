@@ -6,19 +6,28 @@ TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-7254175446:AAF2ws9t2p4K93MDRPozESGuls8
 TELEGRAM_USER_ID="${TELEGRAM_USER_ID:-5671658394}"
 TIME="${TIME:-10}"
 
-if [ "$1" = "success" ]; then
-    MESSAGE="SUCCESS ✅"
+# Режим отправки: по умолчанию используем первый аргумент
+MODE="$1"
+
+# Если передан режим "custom", используем второй аргумент как текст сообщения
+if [ "$MODE" = "custom" ]; then
+    TEXT="$2"
 else
-    MESSAGE="FAILED 🚫"
+    # Стандартный режим - уведомление о статусе
+    if [ "$MODE" = "success" ]; then
+        MESSAGE="SUCCESS ✅"
+    else
+        MESSAGE="FAILED 🚫"
+    fi
+
+    # Получаем информацию о проекте из переменных окружения или используем значения по умолчанию
+    PROJECT_NAME="${GITHUB_REPOSITORY:-S21_brick_game}"
+    COMMIT_REF="${GITHUB_REF_NAME:-unknown}"
+    RUN_ID="${GITHUB_RUN_ID:-unknown}"
+    RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+    TEXT="Deploy status: $MESSAGE %0A%0AProject: $PROJECT_NAME %0AURL: $RUN_URL %0ABranch: $COMMIT_REF"
 fi
-
-# Получаем информацию о проекте из переменных окружения или используем значения по умолчанию
-PROJECT_NAME="${GITHUB_REPOSITORY:-S21_brick_game}"
-COMMIT_REF="${GITHUB_REF_NAME:-unknown}"
-RUN_ID="${GITHUB_RUN_ID:-unknown}"
-RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-TEXT="Deploy status: $MESSAGE %0A%0AProject: $PROJECT_NAME %0AURL: $RUN_URL %0ABranch: $COMMIT_REF"
 
 URL="https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage"
 
