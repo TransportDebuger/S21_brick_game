@@ -1,13 +1,16 @@
-name: CI
+name: FSM Library CI
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - 'src/fsm/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -92,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -164,7 +167,7 @@ jobs:
     needs: build
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -193,7 +196,7 @@ jobs:
     needs: build
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -232,7 +235,7 @@ jobs:
     needs: unit_tests
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Install dependencies
       run: |
@@ -261,7 +264,7 @@ jobs:
     needs: unit_tests
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Download coverage artifacts
       uses: actions/download-artifact@v4
@@ -295,7 +298,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     
     - name: Determine job statuses
       id: status
