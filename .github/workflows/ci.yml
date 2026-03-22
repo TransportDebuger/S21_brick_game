@@ -237,7 +237,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install valgrind
+        sudo apt-get install check valgrind
     
     - name: Run memory tests
       id: mem_test
