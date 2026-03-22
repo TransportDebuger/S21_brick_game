@@ -366,14 +366,14 @@ jobs:
     
     - name: Send Telegram Notification
       run: |
-        TEXT="Результаты CI/CD пайплайна\n\n"
-        TEXT+="Задачи пайплайна:\n"
-        TEXT+="- Сборка: ${BUILD_STATUS}\n"
-        TEXT+="- Генерация документации: ${DOCS_STATUS}\n"
-        TEXT+="- Стилевые тесты: ${LINTER_STATUS}\n"
-        TEXT+="- Юнит-тесты: ${UNIT_STATUS}\n"
-        TEXT+="- Тесты памяти: ${MEM_STATUS}\n"
-        TEXT+="- Покрытие кода: ${COVERAGE_STATUS}\n\n"
+        TEXT="Результаты CI/CD пайплайна%0A%0A"
+        TEXT+="Задачи пайплайна:%0A"
+        TEXT+="- Сборка: ${BUILD_STATUS}%0A"
+        TEXT+="- Генерация документации: ${DOCS_STATUS}%0A"
+        TEXT+="- Стилевые тесты: ${LINTER_STATUS}%0A"
+        TEXT+="- Юнит-тесты: ${UNIT_STATUS}%0A"
+        TEXT+="- Тесты памяти: ${MEM_STATUS}%0A"
+        TEXT+="- Покрытие кода: ${COVERAGE_STATUS}%0A%0A"
         
         if [ "${OVERALL_STATUS}" = "success" ]; then
           TEXT+="✅ Пайплайн выполнен успешно! Все задачи завершены корректно."
