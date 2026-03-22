@@ -88,7 +88,7 @@ make gcov-report
 
 ### 4. Установка
 ```bash
-# Установить в /usr/local (по умолчанию)
+# Установить в ../build/lib (по умолчанию)
 make install
 
 # Установить в пользовательскую директорию
@@ -168,11 +168,11 @@ make test
 ```
 
 Включает:
-1. **Проверка стиля** (`clang-format`)
-2. **Статический анализ** (`cppcheck`)
-3. **Юнит-тесты** (`check` framework)
-4. **Проверка памяти** (`valgrind`)
-5. **Отчёт о покрытии** (`lcov/genhtml`)
+1. **Проверка стиля кода** (`clang-format`)
+2. **Статический анализ кода** (`cppcheck`)
+3. **Юнит-тесты** (`check` framework с зависимостями -lcheck -lsubunit -lm -lrt -lpthread)
+4. **Проверка памяти** (`valgrind` с флагами -s --leak-check=full --show-leak-kinds=all --track-origins=yes)
+5. **Отчёт о покрытии** (`lcov`/`genhtml` на основе результатов сборки с --coverage -g флагами)
 
 ### Запуск отдельных тестов
 ```bash
@@ -195,15 +195,15 @@ make gcov-report
 open tests/coverage/report/index.html
 
 # Документация (Doxygen)
-open docs/html/index.html
+open docs/index.html
 ```
 ## Установка и линковка
 
 ### Глобальная установка
 ```bash
 make install
-# Библиотека установлена в /usr/local/lib
-# Заголовки в /usr/local/include
+# Библиотека установлена в ../build/lib/bin
+# Заголовки в ../build/lib/include
 ```
 
 ### Локальная установка
@@ -238,21 +238,21 @@ gcc -Wall -Wextra -std=c11 \
 1. Проверка окружения (gcc, make)
 2. Создание необходимых директорий
 3. Проверка зависимостей инструментов
-4. **Юнит-тесты:**
-   - Компиляция с флагами покрытия
-   - Запуск тестов
+4. **Линтинг:**
+   - Проверка стиля кода (clang-format)
+   - Статический анализ (cppcheck)
+5. **Юнит-тесты:**
+   - Компиляция с флагами покрытия (--coverage -g)
+   - Запуск тестов с зависимостями (-lcheck -lsubunit -lm -lrt -lpthread)
    - Проверка памяти (valgrind)
-   - Генерация отчёта о покрытии
-5. **Линтинг:**
-   - Проверка стиля кода
-   - Статический анализ
+   - Генерация отчёта о покрытии (lcov/genhtml)
 6. **Сборка:**
    - Компиляция исходных файлов
    - Создание библиотеки (.a или .so)
 7. **Документация:**
    - Проверка окружения (doxygen, graphviz)
    - Генерация Doxygen документации
-9. **Установка:**
+8. **Установка:**
    - Копирование библиотеки в INSTALLDIR/bin
    - Копирование заголовков в INSTALLDIR/include
 
@@ -276,10 +276,10 @@ sudo apt-get install build-essential
 sudo dnf install gcc make
 ```
 
-### Ошибка: "check.h: No such file"
+### Ошибка: "check.h: No such file" или "subunit.h: No such file"
 ```bash
 # Ubuntu/Debian
-sudo apt-get install libcheck-dev
+sudo apt-get install libcheck-dev libsubunit-dev
 
 # Fedora
 sudo dnf install libcheck-devel
