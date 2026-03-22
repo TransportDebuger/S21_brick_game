@@ -289,14 +289,15 @@ jobs:
         echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
 
   notify:
-    needs: [build, linter_tests, unit_tests, memory_tests, coverage]
+    needs: [build, docs, linter_tests, unit_tests, memory_tests, coverage]
     runs-on: ubuntu-latest
+    if: always()
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
     
-    - name: Determine test statuses
+    - name: Determine job statuses
       id: status
       run: |
         # Build status
@@ -308,14 +309,41 @@ jobs:
           echo "BUILD_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
         
-        # Linter status (passed through from linter_tests job)
-        echo "LINTER_STATUS=${{ needs.linter_tests.outputs.LINTER_STATUS }}" >> $GITHUB_ENV
+        # Docs status
+        if [ "${{ needs.docs.result }}" = "success" ]; then
+          echo "DOCS_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.docs.result }}" = "failure" ]; then
+          echo "DOCS_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "DOCS_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
         
-        # Unit test status (passed through from unit_tests job)
-        echo "UNIT_STATUS=${{ needs.unit_tests.outputs.UNIT_STATUS }}" >> $GITHUB_ENV
+        # Linter status
+        if [ "${{ needs.linter_tests.result }}" = "success" ]; then
+          echo "LINTER_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.linter_tests.result }}" = "failure" ]; then
+          echo "LINTER_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "LINTER_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
         
-        # Memory test status (passed through from memory_tests job)
-        echo "MEM_STATUS=${{ needs.memory_tests.outputs.MEM_STATUS }}" >> $GITHUB_ENV
+        # Unit test status
+        if [ "${{ needs.unit_tests.result }}" = "success" ]; then
+          echo "UNIT_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.unit_tests.result }}" = "failure" ]; then
+          echo "UNIT_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "UNIT_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
+        
+        # Memory test status
+        if [ "${{ needs.memory_tests.result }}" = "success" ]; then
+          echo "MEM_STATUS=PASSED" >> $GITHUB_ENV
+        elif [ "${{ needs.memory_tests.result }}" = "failure" ]; then
+          echo "MEM_STATUS=FAILED" >> $GITHUB_ENV
+        else
+          echo "MEM_STATUS=SKIPPED" >> $GITHUB_ENV
+        fi
         
         # Coverage status
         if [ "${{ needs.coverage.result }}" = "success" ]; then
@@ -326,10 +354,10 @@ jobs:
           echo "COVERAGE_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
         
-        # Overall status - success only if all tests passed or were skipped
+        # Overall status - success only if all jobs passed
         overall_status="success"
-        for status in "$BUILD_STATUS" "$LINTER_STATUS" "$UNIT_STATUS" "$MEM_STATUS" "$COVERAGE_STATUS"; do
-          if [ "$status" = "FAILED" ]; then
+        for status in "$BUILD_STATUS" "$DOCS_STATUS" "$LINTER_STATUS" "$UNIT_STATUS" "$MEM_STATUS" "$COVERAGE_STATUS"; do
+          if [ "$status" = "FAILED" ] || [ "$status" = "SKIPPED" ]; then
             overall_status="failure"
             break
           fi
@@ -338,17 +366,19 @@ jobs:
     
     - name: Send Telegram Notification
       run: |
-        TEXT="Результаты тестирования CI/CD\n\n"
-        TEXT+="Сборка: ${BUILD_STATUS}\n"
-        TEXT+="Стилевые тесты: ${LINTER_STATUS}\n"
-        TEXT+="Юнит-тесты: ${UNIT_STATUS}\n"
-        TEXT+="Тесты памяти: ${MEM_STATUS}\n"
-        TEXT+="Покрытие кода: ${COVERAGE_STATUS}\n\n"
+        TEXT="Результаты CI/CD пайплайна\n\n"
+        TEXT+="Задачи пайплайна:\n"
+        TEXT+="- Сборка: ${BUILD_STATUS}\n"
+        TEXT+="- Генерация документации: ${DOCS_STATUS}\n"
+        TEXT+="- Стилевые тесты: ${LINTER_STATUS}\n"
+        TEXT+="- Юнит-тесты: ${UNIT_STATUS}\n"
+        TEXT+="- Тесты памяти: ${MEM_STATUS}\n"
+        TEXT+="- Покрытие кода: ${COVERAGE_STATUS}\n\n"
         
         if [ "${OVERALL_STATUS}" = "success" ]; then
-          TEXT+="✅ Все тесты пройдены успешно!"
+          TEXT+="✅ Пайплайн выполнен успешно! Все задачи завершены корректно."
         else
-          TEXT+="❌ Один или несколько тестов завершились с ошибками."
+          TEXT+="❌ Пайплайн завершен с ошибками. Одна или несколько задач не были выполнены успешно."
         fi
         
         chmod +x ./.github/scripts/telegram-notify.sh
