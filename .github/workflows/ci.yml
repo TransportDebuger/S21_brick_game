@@ -69,21 +69,21 @@ jobs:
     - name: Send Telegram Notification (Build Success)
       if: env.BUILD_STATUS == 'success' && env.ARTIFACT_API_URL != ''
       run: |
-        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт сборки доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID}\n\nСсылка действует 5 дней."
+        TEXT="✅ Сборка успешна! %0A%0A Проект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Build Success - No Direct URL)
       if: env.BUILD_STATUS == 'success' && (env.ARTIFACT_API_URL == '' || env.ARTIFACT_API_URL == null)
       run: |
-        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт сборки доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID}\n\nСсылка действует 5 дней."
+        TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Build Failure)
       if: env.BUILD_STATUS == 'failure'
       run: |
-        TEXT="❌ Сборка провалена!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.\n\nПодробные логи сборки: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        TEXT="❌ Сборка провалена!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.%0A%0AПодробные логи сборки: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
 
@@ -141,25 +141,26 @@ jobs:
     - name: Send Telegram Notification (Docs Success)
       if: env.DOCS_STATUS == 'success' && env.DOCS_API_URL != ''
       run: |
-        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт документации доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${DOCS_ARTIFACT_ID}\n\nСсылка действует 5 дней.\n\nДокументация генерируется только после успешной сборки."
+        TEXT="✅ Документация успешно сгенерирована!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакт документации доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${DOCS_ARTIFACT_ID} %0A%0A Ссылка действует 5 дней.%0A%0AДокументация генерируется только после успешной сборки."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Docs Success - No Direct URL)
       if: env.DOCS_STATUS == 'success' && (env.DOCS_API_URL == '' || env.DOCS_API_URL == null)
       run: |
-        TEXT="✅ Документация успешно сгенерирована!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт документации доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${DOCS_ARTIFACT_ID}\n\nСсылка действует 5 дней.\n\nДокументация генерируется только после успешной сборки."
+        TEXT="✅ Документация успешно сгенерирована!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AАртефакт документации доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${DOCS_ARTIFACT_ID} %0A%0A Ссылка действует 5 дней.%0A%0AДокументация генерируется только после успешной сборки."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
     - name: Send Telegram Notification (Docs Failure)
       if: env.DOCS_STATUS == 'failure'
       run: |
-        TEXT="❌ Ошибка генерации документации!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nПодробные логи генерации документации: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\n\nДокументация генерируется только после успешной сборки."
+        TEXT="❌ Ошибка генерации документации!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0A%0AПодробные логи генерации документации: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} %0A%0AДокументация генерируется только после успешной сборки."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
 
   test:
+    needs: build
     runs-on: ubuntu-latest
     
     steps:
