@@ -74,7 +74,7 @@ jobs:
     - name: Send Telegram Notification (Build Success - No Direct URL)
       if: env.BUILD_STATUS == 'success' && (env.ARTIFACT_API_URL == '' || env.ARTIFACT_API_URL == null)
       run: |
-        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт сборки доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/$(echo $ARTIFACT_URL | cut -d'/' -f 9)\n\nСсылка действует 5 дней." в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.\n\nСкачать артефакты можно по кнопке 'fsm-library' в интерфейсе GitHub."
+        TEXT="✅ Сборка успешна!\n\nПроект: ${GITHUB_REPOSITORY}\nВетка: ${GITHUB_REF_NAME}\n\nАртефакт сборки доступен по ссылке: %0Ahttps://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID}\n\nСсылка действует 5 дней."
         
         curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
     
