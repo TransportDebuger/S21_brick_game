@@ -12,7 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install build-essential libcheck-dev valgrind lcov doxygen graphviz clang-format cppcheck
+        sudo apt-get install build-essential check valgrind lcov doxygen graphviz clang-format cppcheck
     
     - name: Build and test
       run: |
