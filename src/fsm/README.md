@@ -60,39 +60,59 @@ cd fsm
 ```bash
 # Полная сборка (тесты, документация, установка)
 make all
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target all-build
 
 # Только сборка библиотеки (статическая библиотека)
 make build
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target build
 
 # Сборка динамической библиотеки
 make build LIBTYPE=dynamic
+# или с помощью CMake
+cmake -S . -B build -D LIBTYPE=dynamic && cmake --build build --target build
 ```
 
 ### 3. Запуск тестов
 ```bash
 # Все тесты (стиль, юнит-тесты, valgrind, покрытие)
 make test
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target run-tests
 
 # Проверка стиля кодирования и статический анализ кода
 make linter-test
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target linter-test
 
 # Только юнит-тесты
 make unit-test
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target unit-test
 
 # Проверка утечек памяти
 make mem-test
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target mem-test
 
 # Отчёт о покрытии кода
 make gcov-report
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target gcov-report
 ```
 
 ### 4. Установка
 ```bash
 # Установить в ../build/lib (по умолчанию)
 make install
+# или с помощью CMake
+cmake -S . -B build && cmake --build build --target install_target
 
 # Установить в пользовательскую директорию
 make install INSTALLDIR=$HOME/mylibs
+# или с помощью CMake
+cmake -S . -B build -D INSTALLDIR=$HOME/mylibs && cmake --build build --target install_target
 ```
 
 ### 5. Использование в проектах
