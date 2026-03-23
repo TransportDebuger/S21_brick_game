@@ -344,7 +344,9 @@ jobs:
     
     - name: Send Telegram Notification
       run: |
-        TEXT="Результаты CI/CD пайплайна%0A%0A"
+        TEXT="Результаты CI/CD пайплайна: ${GITHUB_WORKFLOW_NAME}%0A%0A"
+        TEXT+="Проект: ${GITHUB_REPOSITORY}%0A"
+        TEXT+="Ветка: ${GITHUB_REF_NAME}%0A%0A"
         TEXT+="Задачи пайплайна:%0A"
         TEXT+="- Сборка: ${BUILD_STATUS}%0A"
         TEXT+="- Генерация документации: ${DOCS_STATUS}%0A"
