@@ -180,16 +180,6 @@ jobs:
       run: |
         cd src/fsm
         make linter-test
-    
-    - name: Set linter status
-      run: |
-        if [ "${{ steps.linter_test.outcome }}" = "success" ]; then
-          echo "LINTER_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ steps.linter_test.outcome }}" = "failure" ]; then
-          echo "LINTER_STATUS=FAILED" >> $GITHUB_ENV
-        else
-          echo "LINTER_STATUS=SKIPPED" >> $GITHUB_ENV
-        fi
 
   unit_tests:
     runs-on: ubuntu-latest
@@ -209,16 +199,6 @@ jobs:
       run: |
         cd src/fsm
         make unit-test
-    
-    - name: Set unit test status
-      run: |
-        if [ "${{ steps.unit_test.outcome }}" = "success" ]; then
-          echo "UNIT_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ steps.unit_test.outcome }}" = "failure" ]; then
-          echo "UNIT_STATUS=FAILED" >> $GITHUB_ENV
-        else
-          echo "UNIT_STATUS=SKIPPED" >> $GITHUB_ENV
-        fi
     
     - name: Upload coverage artifacts
       if: success() || failure()
@@ -248,16 +228,6 @@ jobs:
       run: |
         cd src/fsm
         make mem-test
-    
-    - name: Set memory test status
-      run: |
-        if [ "${{ steps.mem_test.outcome }}" = "success" ]; then
-          echo "MEM_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ steps.mem_test.outcome }}" = "failure" ]; then
-          echo "MEM_STATUS=FAILED" >> $GITHUB_ENV
-        else
-          echo "MEM_STATUS=SKIPPED" >> $GITHUB_ENV
-        fi
 
   coverage:
     runs-on: ubuntu-latest
@@ -295,10 +265,6 @@ jobs:
         name: html-coverage-report
         path: src/fsm/tests/coverage/report/
         retention-days: 5
-    
-    - name: Set coverage status
-      run: |
-        echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
 
   notify:
     needs: [build, docs, linter_tests, unit_tests, memory_tests, coverage]
