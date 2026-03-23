@@ -330,36 +330,36 @@ jobs:
         fi
 
         # Linter status
-        if [ "${{ jobs.linter_tests.result }}" = "success" ]; then
+        if [ "${{ needs.linter_tests.result }}" = "success" ]; then
           echo "LINTER_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ jobs.linter_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.linter_tests.result }}" = "failure" ]; then
           echo "LINTER_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "LINTER_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
 
         # Unit test status
-        if [ "${{ jobs.unit_tests.result }}" = "success" ]; then
+        if [ "${{ needs.unit_tests.result }}" = "success" ]; then
           echo "UNIT_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ jobs.unit_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.unit_tests.result }}" = "failure" ]; then
           echo "UNIT_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "UNIT_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
 
         # Memory test status
-        if [ "${{ jobs.memory_tests.result }}" = "success" ]; then
+        if [ "${{ needs.memory_tests.result }}" = "success" ]; then
           echo "MEM_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ jobs.memory_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.memory_tests.result }}" = "failure" ]; then
           echo "MEM_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "MEM_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
 
         # Coverage status
-        if [ "${{ jobs.coverage.result }}" = "success" ]; then
+        if [ "${{ needs.coverage.result }}" = "success" ]; then
           echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ jobs.coverage.result }}" = "failure" ]; then
+        elif [ "${{ needs.coverage.result }}" = "failure" ]; then
           echo "COVERAGE_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "COVERAGE_STATUS=SKIPPED" >> $GITHUB_ENV
