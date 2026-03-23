@@ -1,726 +1,464 @@
-# 🎮 s21_tetris — Библиотека игры Тетрис v2.2
+# Tetris Game Library (s21_tetris)
 
-**Полнофункциональная реализация классического Тетриса на C с интеграцией в многоигровой движок BrickGame**
+s21_tetris — это реализация классической игры Тетрис на языке C, разработанная для интеграции в многоигровой консольный движок BrickGame. Библиотека предоставляет полный API для управления жизненным циклом игры, обработки ввода, обновления состояния и отображения игрового процесса.
 
----
+Разработана как часть проекта s21_brick_game и предназначена для использования в составе более крупного приложения, реализующего классические аркадные игры.
 
-## 📋 Содержание
+## Описание проекта
 
-- [Обзор](#обзор)
-- [Ключевые особенности](#ключевые-особенности)
-- [Быстрый старт](#быстрый-старт)
-- [Архитектура](#архитектура)
-- [API Reference](#api-reference)
-- [Примеры использования](#примеры-использования)
-- [Структуры данных](#структуры-данных)
-- [FSM Диаграмма](#fsm-диаграмма)
-- [Производительность](#производительность)
-- [Тестирование](#тестирование)
-- [Часто задаваемые вопросы](#часто-задаваемые-вопросы)
+Библиотека s21_tetris представляет собой полную реализацию классической игры Тетрис, разработанную с использованием современных подходов к архитектуре программного обеспечения. Она реализует паттерн "Фасад", предоставляя унифицированный интерфейс для взаимодействия с игрой, при этом скрывая сложную внутреннюю реализацию.
 
----
+Основная цель библиотеки — обеспечить надежную, производительную и легко интегрируемую реализацию игры Тетрис, которая может быть зарегистрирована в общем игровом движке и управляться через единый API. Библиотека использует конечный автомат (FSM) для управления состояниями игры, что обеспечивает четкую и предсказуемую смену фаз игрового процесса.
 
-## 🎯 Обзор
+Библиотека включает в себя:
+- **Публичный API** — набор функций для создания, уничтожения, обработки ввода, обновления и получения состояния игры
+- **Инкапсуляция** — внутренняя структура игры скрыта через неполный тип, предотвращая прямой доступ к внутренним данным
+- **Конечный автомат (FSM)** — надежное управление состояниями игры (инициализация, падение фигуры, пауза, окончание игры и т.д.)
+- **Система хранения рекордов** — автоматическое сохранение и загрузка рекорда между сессиями
 
-**s21_tetris** — это профессиональная реализация игры Тетрис, разработанная для:
+Архитектура библиотеки обеспечивает высокую степень модульности, позволяет легко интегрировать игру в более крупные системы и способствует повторному использованию кода как внутри проекта, так и в сторонних приложениях.
 
-- **Классического геймплея** с семью типами фигур (тетромино)
-- **Современной архитектуры** на основе конечного автомата (FSM)
-- **Интеграции с движком** BrickGame для многоигровых сценариев
-- **Высокого качества кода** с полной документацией Doxygen
+### Архитектурные ограничения
 
-### Основная информация
+Библиотека `s21_tetris` имеет ряд важных архитектурных ограничений, о которых необходимо знать при её интеграции:
 
-| Параметр | Значение |
-|----------|----------|
-| **Версия** | 2.2 |
-| **Язык** | C (C99/C11 compatible) |
-| **Размер поля** | 20×10 (классический стандарт) |
-| **Фигуры** | 7 типов (I, O, T, S, Z, J, L) |
-| **Состояния FSM** | 6 состояний + переходы |
-| **Память на игру** | ~2.7 KB |
-| **Лицензия** | MIT (или указать вашу) |
+- **Потоконебезопасность**: Все функции библиотеки **не являются потокобезопасными**. Они спроектированы для использования в однопоточном режиме. Доступ к API из нескольких потоков одновременно может привести к состоянию гонки и неопределённому поведению.
+- **Зависимость от внешних компонентов**: Библиотека зависит от модуля FSM (libs21_fsm) и общей библиотеки s21_bgame. Эти компоненты должны быть доступны при компиляции и выполнении.
+- **Размер игрового поля**: Размер поля жёстко зафиксирован как 20×10 ячеек. Изменение размера требует модификации констант и пересборки библиотеки.
+- **Отсутствие поддержки wall kicks**: При повороте фигура не смещается при столкновении со стенками, что может повлиять на игровой опыт.
 
----
+**Рекомендация**: Для многопоточных приложений используйте `s21_tetris` в отдельном рабочем потоке и синхронизируйте доступ к его API через мьютексы с основным потоком.
 
-## ✨ Ключевые особенности
+**Основные возможности:**
+- Полная реализация классического Тетриса
+- Управление через единый API (`UserAction_t`)
+- Поддержка ввода пользователя (клавиатура/кнопки)
+- Обработка игровой логики и состояния (FSM)
+- Получение текущего состояния игры (`GameInfo_t`)
+- Сохранение и загрузка рекорда между сессиями
+- Поддержка статической и динамической сборки
+- Полное покрытие юнит-тестами
+- Проверка утечек памяти (valgrind)
+- Генерация документации (Doxygen)
 
-### 🔒 Архитектура
-- ✅ **Паттерн Фасад** — чистый публичный API, скрывающий сложность
-- ✅ **Инкапсуляция** — внутренняя структура TetrisGame скрыта через неполный тип
-- ✅ **FSM на основе таблицы переходов** — надёжное управление состояниями
-- ✅ **Разделение ответственности** — отдельные слои для логики и отрисовки
+## API: ключевые компоненты
 
-### 🎮 Игромеханика
-- ✅ **7 тетромино** с правильной физикой падения
-- ✅ **4 направления ротации** для каждой фигуры
-- ✅ **Soft drop и hard drop** — разные скорости падения
-- ✅ **Очистка линий** с подсчётом очков и повышением уровня
-- ✅ **Пауза и возобновление** игры
-- ✅ **Сохранение рекорда** на диск
+### GameId_t — Идентификаторы игр
 
-### 🛡️ Надёжность
-- ✅ **Обработка NULL-указателей** во всех функциях
-- ✅ **Exception-safe выделение памяти** с откатом при ошибке
-- ✅ **Проверка границ** для предотвращения buffer overflow
-- ✅ **Валидация координат и типов** фигур
+```c
+typedef enum {
+  GAME_UNDEFINED = 0, ///< Неопределенная игра (служебное значение)
+  GAME_TETRIS = 1,    ///< Игра "Тетрис"
+  GAME_SNAKE = 2      ///< Игра "Змейка"
+} GameId_t;
+```
 
-### 📚 Документация
-- ✅ **Полная Doxygen-документация** всех функций
-- ✅ **Комментарии к сложным алгоритмам**
-- ✅ **Примеры использования** в исходном коде
-- ✅ **Описание констант** и их назначения
+### UserAction_t — Действия пользователя
 
----
+```c
+typedef enum {
+  Start = 0,  ///< Запуск или перезапуск игры
+  Pause,      ///< Переключение состояния паузы
+  Terminate,  ///< Принудительное завершение игры
+  Left,       ///< Движение или смещение влево
+  Right,      ///< Движение или смещение вправо
+  Up,         ///< Движение или смещение вверх
+  Down,       ///< Движение или смещение вниз (например, ускоренное падение)
+  Action      ///< Выполнение специального действия (например, поворот фигуры в Tetris)
+} UserAction_t;
+```
 
-## 🚀 Быстрый старт
+### GameInterface_t — Интерфейс игры
 
-### Установка
+Структура с виртуальными функциями:
 
+- `create()` — создаёт экземпляр игры
+- `destroy()` — уничтожает экземпляр
+- `input()` — обработка ввода пользователя
+- `update()` — выполнение игрового тика
+- `get_info()` — получение текущего состояния игры
+
+### Глобальные функции
+
+- `bg_register_game()` — регистрация интерфейса игры в системе
+- `bg_get_game()` — получение интерфейса игры по идентификатору
+- `bg_switch_game()` — переключение активной игры
+- `bg_get_current_game()` — получение интерфейса текущей активной игры
+- `bg_get_current_instance()` — получение экземпляра текущей игры
+- `userInput()` — передача пользовательского ввода
+- `updateCurrentState()` — получение текущего состояния игры
+
+### Функции для тестирования
+
+- `bg_reset_current_for_testing()` — сбрасывает контекст текущей активной игры (только при сборке с `-DTEST_ENV`)
+- `bg_reset_registry_for_testing()` — сбрасывает реестр игр и его состояние инициализации (только при сборке с `-DTEST_ENV`)
+
+## Требования
+
+### Обязательные зависимости:
+- **GCC** - компилятор C (версия 11.0 или выше)
+- **GNU Make** - система сборки
+- **libs21_fsm** - библиотека конечных автоматов (см. `src/fsm`)
+- **libs21_bgame** - библиотека управления играми (см. `src/brick_game/common`)
+
+#### Диаграмма зависимостей модулей
+
+![Диаграмма зависимостей модулей](misc/architecture.svg)
+
+### Опциональные зависимости:
+- **CMocka** (`libcmocka-dev`) - фреймворк для юнит-тестирования
+- **Valgrind** (`valgrind`) - проверка утечек памяти
+- **LCOV** (`lcov`) - генерация отчётов о покрытии кода
+- **Doxygen** (`doxygen`) - генерация документации
+- **Graphviz** (`graphviz`) - визуализация для Doxygen
+- **Clang-Format** (`clang-format`) - проверка стиля кода
+- **CppCheck** (`cppcheck`) - статический анализ кода
+
+### Установка зависимостей
+
+**Ubuntu/Debian:**
 ```bash
-# Скопируйте файлы в ваш проект
-cp s21_tetris.h s21_tetris.c s21_tetris_internals.* s21_tetris_pieces.c /path/to/your/project
-
-# Убедитесь, что зависимости установлены
-# - s21_fsm.h (модуль конечного автомата)
-# - s21_bgame.h (интерфейсы игрового движка)
+sudo apt-get install build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
 ```
 
-### Базовый пример
-
-```c
-#include "s21_tetris.h"
-
-int main() {
-    // 1. Создание игры
-    void *game = tetris_create();
-    if (!game) {
-        fprintf(stderr, "Failed to create game\n");
-        return 1;
-    }
-    
-    // 2. Запуск игры
-    tetris_handle_input(game, Start, false);
-    tetris_update(game);
-    
-    // 3. Основной игровой цикл
-    while (1) {
-        // Получаем состояние для отрисовки
-        const GameInfo_t *info = tetris_get_info(game);
-        if (!info) break;
-        
-        // Отрисовываем (реализация зависит от вашего движка)
-        draw_game_state(info);
-        
-        // Проверяем окончание
-        if (info->game_over) break;
-        
-        // Обрабатываем пользовательский ввод
-        UserAction_t action = get_user_action();
-        if (action != Up) {  // Up — пусто, игнорируется
-            tetris_handle_input(game, action, is_key_held());
-        }
-        
-        // Игровой тик (управляет падением)
-        tetris_update(game);
-        
-        // Задержка для FPS контроля (~50-100ms для классического Тетриса)
-        usleep(100000);
-    }
-    
-    // 4. Очистка
-    tetris_destroy(game);
-    return 0;
-}
-```
-
-### Компиляция
-
+**Fedora/RHEL:**
 ```bash
-gcc -c s21_tetris.c s21_tetris_internals.c s21_tetris_pieces.c
-gcc -o my_game main.c s21_tetris.o s21_tetris_internals.o s21_tetris_pieces.o \
-    -L. -ls21_fsm -ls21_bgame -lm
+sudo dnf install gcc make libcmocka-devel valgrind lcov doxygen graphviz clang-tools-extra cppcheck
 ```
 
----
-
-## 🏛️ Архитектура
-
-### Структура файлов
-
-```
-s21_tetris/
-├── s21_tetris.h                 (8.5 KB)  — Публичный API
-├── s21_tetris.c                 (8.3 KB)  — Реализация фасада
-├── s21_tetris_internals.h       (57.9 KB) — Структуры и интерфейсы
-├── s21_tetris_internals.c       (39.7 KB) — Логика игры
-└── s21_tetris_pieces.c          (7.4 KB)  — Данные фигур
-```
-
-### Паттерны проектирования
-
-#### 1. **Фасад** (Facade)
-```
-Пользователь → [s21_tetris.h API] → [s21_tetris.c фасад] → 
-    [internals.c логика] → [internals.h структуры]
-```
-
-#### 2. **Инкапсуляция через неполный тип**
-```c
-// В заголовке: неполный тип (forward declaration)
-struct TetrisGame;  // только объявление, без определения
-
-// В .c файле: полное определение
-struct TetrisGame {
-    fsm_t fsm;
-    TetrisPiece current;
-    // ... остальные поля
-};
-
-// Результат: внешний код не может напрямую обращаться к полям
-```
-
-#### 3. **Таблица переходов FSM**
-```c
-static const fsm_transition_t tetris_transitions[] = {
-    // Состояние | Событие | Новое состояние | on_enter | on_exit
-    { INIT,  START,     SPAWN,      NULL,          on_enter_spawn },
-    { SPAWN, TICK,      FALL,       NULL,          NULL },
-    { FALL,  TICK,      LOCK,       NULL,          on_enter_lock },
-    // ... и так далее
-};
-```
-
----
-
-## 📖 API Reference
-
-### Функции создания/уничтожения
-
-#### `tetris_create(void)`
-Создаёт новый экземпляр игры.
-
-```c
-void *game = tetris_create();
-if (!game) {
-    perror("Memory allocation failed");
-    return -1;
-}
-```
-
-**Возвращает:** Указатель на игру или NULL при ошибке.
-
-#### `tetris_destroy(void *game)`
-Освобождает ресурсы игры.
-
-```c
-tetris_destroy(game);  // Безопасно даже с NULL
-```
-
----
-
-### Функции ввода/обновления
-
-#### `tetris_handle_input(void *game, UserAction_t action, bool hold)`
-Обрабатывает действие пользователя.
-
-```c
-// Простое движение влево
-tetris_handle_input(game, Left, false);
-
-// Hard drop (удержание "вниз")
-tetris_handle_input(game, Down, true);
-
-// Soft drop (однократное нажатие "вниз")
-tetris_handle_input(game, Down, false);
-
-// Поворот
-tetris_handle_input(game, Action, false);
-
-// Пауза
-tetris_handle_input(game, Pause, false);
-```
-
-**Параметры:**
-- `action` — UserAction_t (Start, Left, Right, Down, Up, Action, Pause, Terminate)
-- `hold` — true для удержания, false для одного нажатия
-
-#### `tetris_update(void *game)`
-Обновляет состояние на один тик.
-
-```c
-// Вызывается регулярно (например, раз в 100ms)
-tetris_update(game);
-```
-
-**Что происходит при вызове:**
-- Падение фигуры вниз на одну клетку
-- Проверка коллизий
-- Фиксация фигуры при необходимости
-- Очистка линий и подсчёт очков
-
----
-
-### Функция получения состояния
-
-#### `tetris_get_info(const void *game)`
-Возвращает текущее состояние для отрисовки.
-
-```c
-const GameInfo_t *info = tetris_get_info(game);
-if (!info) {
-    fprintf(stderr, "Invalid game pointer\n");
-    return;
-}
-
-// Используем info для отрисовки
-printf("Score: %d\n", info->score);
-printf("Level: %d\n", info->level);
-printf("Game Over: %s\n", info->game_over ? "Yes" : "No");
-```
-
-**Содержимое GameInfo_t:**
-```c
-struct GameInfo_t {
-    int **field;        // Игровое поле [20][10]
-    int **next;         // Следующая фигура [4][4]
-    int score;          // Текущий счёт
-    int high_score;     // Рекорд
-    int level;          // Уровень (1, 2, 3, ...)
-    int speed;          // Задержка в мс
-    int pause;          // Флаг паузы (0/1)
-    int game_over;      // Флаг окончания (0/1)
-};
-```
-
----
-
-### Функция регистрации
-
-#### `tetris_get_interface(GameId_t id)`
-Возвращает интерфейс для регистрации в движке.
-
-```c
-GameInterface_t iface = tetris_get_interface(GAME_TETRIS);
-
-// Теперь движок может вызывать функции игры:
-void *game = iface.create();
-iface.input(game, Left, false);
-iface.update(game);
-const GameInfo_t *info = iface.get_info(game);
-iface.destroy(game);
-```
-
----
-
-## 📚 Структуры данных
-
-### TetrisGame (основная структура)
-
-Скрыта в `s21_tetris_internals.c`. Содержит:
-
-```c
-struct TetrisGame {
-    fsm_t fsm;                      // Конечный автомат
-    TetrisPiece current;            // Текущая активная фигура
-    TetrisPiece next;               // Следующая фигура
-    int **field_storage;            // Основное поле [20][10]
-    int **next_storage;             // Буфер следующей [4][4]
-    GameInfo_t info;                // Публичное состояние
-    int game_over;                  // Флаг окончания
-    int score;                      // Текущий счёт
-    int level;                      // Уровень
-    int lines_cleared;              // Очищенные линии
-    int high_score;                 // Рекорд
-    int speed;                      // Текущая скорость
-    // ... и другие поля
-};
-```
-
-### TetrisPiece (фигура)
-
-```c
-struct TetrisPiece {
-    int type;       // 0-6 (I, O, T, S, Z, J, L)
-    int rotation;   // 0-3 (0°, 90°, 180°, 270°)
-    int x;          // Позиция X в поле
-    int y;          // Позиция Y в поле
-};
-```
-
-### TETROMINO_DATA (формы фигур)
-
-```c
-// Глобальный массив форм (в s21_tetris_pieces.c)
-extern const int TETROMINO_DATA[7][4][4][4];
-//                                 ↑  ↑  ↑  ↑
-//                    тип (7)  вращение (4)  строка (4)  столбец (4)
-```
-
-Каждая ячейка содержит:
-- `0` — пустая ячейка
-- `1–7` — ID фигуры (используется при отрисовке)
-
-**Пример I-фигуры (вертикальная ориентация):**
-```
-0 1 0 0
-0 1 0 0
-0 1 0 0
-0 1 0 0
-```
-
----
-
-## 🔄 FSM Диаграмма
-
-### Состояния
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ INIT (инициализация)                                    │
-│ - Очищает поле и статистику                            │
-│ - Генерирует первые фигуры                             │
-│ - Инициализирует FSM                                   │
-└──────────────────┬──────────────────────────────────────┘
-                   │ START
-                   ↓
-┌─────────────────────────────────────────────────────────┐
-│ SPAWN (спавн новой фигуры)                              │
-│ - Перемещает next в current                            │
-│ - Генерирует новую next                                │
-│ - Проверяет коллизию (если есть → GAME_OVER)          │
-└──────────────────┬──────────────────────────────────────┘
-                   │ TICK
-                   ↓
-┌─────────────────────────────────────────────────────────┐
-│ FALL (активное падение)                                 │
-│ - Обрабатывает движения (LEFT, RIGHT)                 │
-│ - Обрабатывает повороты (ROTATE)                      │
-│ - Обрабатывает мягкое падение (MOVE_DOWN)             │
-│ - Обрабатывает жёсткое падение (DROP)                 │
-│ - Проверяет коллизию при падении                      │
-│ ↑                                                       │
-│ │ PAUSE_TOGGLE                                         │
-│ │                                                       │
-└──────────┬──────────────────────┬──────────────────────┘
-           │                      │
-        TICK/DOWN/DROP         PAUSE_TOGGLE
-           │                      │
-           ↓                      ↓
-  ┌──────────────┐      ┌─────────────────┐
-  │ LOCK         │      │ PAUSED          │
-  │ (фиксация)   │      │ (пауза)         │
-  │              │      │                 │
-  │ - Lock       │      │ - Ожидает       │
-  │ - Check&Clear│      │   возобновления │
-  │ - AddScore   │      └────┬────────────┘
-  │ - UpdateLevel│            │ PAUSE_TOGGLE
-  │              │            │
-  └──────┬───────┘            ↓
-         │ TICK           FALL ←┘
-         ↓
-    SPAWN (новая фигура)
-
-┌──────────────────────────────────┐
-│ GAME_OVER (конец игры)           │
-│ - Отображает финальный счёт      │
-│ - Сохраняет рекорд              │
-│ - Ожидает нового старта          │
-└──────────┬───────────────────────┘
-           │ START
-           ↓
-        INIT
-```
-
-### Таблица переходов (14 правил)
-
-| Текущее | Событие | Новое | Действие |
-|---------|---------|-------|----------|
-| INIT | START | SPAWN | Спавн первой фигуры |
-| SPAWN | TICK | FALL | Начало падения |
-| SPAWN | NONE | GAME_OVER | Коллизия при спавне |
-| FALL | TICK | LOCK | Фиксация при падении |
-| FALL | MOVE_DOWN | LOCK | Soft drop → фиксация |
-| FALL | DROP | LOCK | Hard drop → фиксация |
-| FALL | MOVE_LEFT | FALL | Движение влево |
-| FALL | MOVE_RIGHT | FALL | Движение вправо |
-| FALL | ROTATE | FALL | Поворот |
-| FALL | PAUSE_TOGGLE | PAUSED | Пауза |
-| PAUSED | PAUSE_TOGGLE | FALL | Возобновление |
-| FALL | TERMINATE | GAME_OVER | Выход |
-| LOCK | TICK | SPAWN | Спавн следующей |
-| GAME_OVER | START | INIT | Перезапуск |
-
----
-
-## 💡 Примеры использования
-
-### Пример 1: Простая интеграция
-
-```c
-#include "s21_tetris.h"
-#include <unistd.h>
-
-void main_game_loop() {
-    void *game = tetris_create();
-    tetris_handle_input(game, Start, false);
-    tetris_update(game);
-    
-    while (1) {
-        const GameInfo_t *info = tetris_get_info(game);
-        
-        // Проверяем окончание
-        if (info->game_over) {
-            printf("Game Over! Score: %d\n", info->score);
-            break;
-        }
-        
-        // Простая отрисовка поля
-        for (int i = 0; i < 20; i++) {
-            for (int j = 0; j < 10; j++) {
-                printf("%s", info->field[i][j] ? "██" : "  ");
-            }
-            printf("\n");
-        }
-        printf("Score: %d, Level: %d\n\n", info->score, info->level);
-        
-        // Автоматическое падение (без ввода)
-        tetris_update(game);
-        usleep(500000);  // 500ms
-    }
-    
-    tetris_destroy(game);
-}
-```
-
-### Пример 2: С обработкой ввода
-
-```c
-#include "s21_tetris.h"
-
-int main() {
-    void *game = tetris_create();
-    tetris_handle_input(game, Start, false);
-    
-    while (1) {
-        // Обработка ввода (зависит от вашей системы)
-        int ch = getchar();
-        
-        switch (ch) {
-            case 'a':  tetris_handle_input(game, Left, false); break;
-            case 'd':  tetris_handle_input(game, Right, false); break;
-            case 's':  tetris_handle_input(game, Down, false); break;
-            case 'w':  tetris_handle_input(game, Action, false); break;  // Поворот
-            case 'p':  tetris_handle_input(game, Pause, false); break;
-            case 'q':  tetris_handle_input(game, Terminate, false); break;
-        }
-        
-        // Игровой тик
-        tetris_update(game);
-        
-        // Получаем и отображаем состояние
-        const GameInfo_t *info = tetris_get_info(game);
-        if (info->game_over) {
-            printf("Final score: %d\n", info->score);
-            break;
-        }
-    }
-    
-    tetris_destroy(game);
-    return 0;
-}
-```
-
-### Пример 3: Интеграция с BrickGame движком
-
-```c
-#include "s21_bgame.h"
-
-int main() {
-    GameEngine_t engine;
-    game_engine_init(&engine);
-    
-    // Регистрируем Тетрис в движке
-    GameInterface_t tetris = tetris_get_interface(GAME_TETRIS);
-    game_engine_register_game(&engine, &tetris);
-    
-    // Переключаемся на Тетрис
-    game_engine_switch_game(&engine, GAME_TETRIS);
-    
-    // Используем движок для управления игрой
-    while (!engine.should_quit) {
-        UserAction_t action = read_user_input();
-        engine.input(&engine.current_game, action, is_held);
-        engine.update(&engine.current_game);
-        
-        const GameInfo_t *info = engine.get_info(&engine.current_game);
-        render_game(info);
-    }
-    
-    game_engine_cleanup(&engine);
-    return 0;
-}
-```
-
----
-
-## 📊 Производительность
-
-### Память
-
-```
-TetrisGame структура:        1 KB
-field_storage (20×10×4):     800 bytes
-next_storage (4×4×4):         64 bytes
-info.field (20×10×4):        800 bytes
-────────────────────────────────
-ИТОГО на игру:              ~2.7 KB
-```
-
-### Временная сложность
-
-| Операция | Сложность | Примечание |
-|----------|-----------|-----------|
-| tetris_create() | O(1) | Выделение памяти и инициализация |
-| tetris_destroy() | O(1) | Освобождение памяти |
-| tetris_handle_input() | O(1) | Преобразование действия в событие |
-| tetris_move_piece() | O(1) | Проверка 16 ячеек (4×4 матрица) |
-| tetris_rotate_piece() | O(1) | Проверка новой ориентации |
-| tetris_check_collision() | O(1) | Проверка 16 ячеек |
-| tetris_lock_piece() | O(1) | Размещение 16 ячеек |
-| tetris_update() | O(200) = O(1) | Обновление поля 20×10 |
-| tetris_get_info() | O(200) = O(1) | Синхронизация информации |
-
-**Вывод:** Все операции практически мгновенны (<<1ms).
-
----
-
-## 🧪 Тестирование
-
-### Модульные тесты (примеры)
-
-```c
-#include <assert.h>
-#include "s21_tetris.h"
-
-void test_create_destroy() {
-    void *game = tetris_create();
-    assert(game != NULL);
-    tetris_destroy(game);
-    assert(true);  // No crash
-}
-
-void test_handle_input_null() {
-    tetris_handle_input(NULL, Start, false);
-    // Should not crash
-}
-
-void test_move_piece() {
-    void *game = tetris_create();
-    tetris_handle_input(game, Start, false);
-    tetris_update(game);
-    tetris_update(game);  // Переходим в FALL
-    
-    // Попытаемся переместить фигуру
-    const GameInfo_t *info = tetris_get_info(game);
-    assert(info != NULL);
-    
-    tetris_destroy(game);
-}
-
-int main() {
-    test_create_destroy();
-    test_handle_input_null();
-    test_move_piece();
-    printf("All tests passed!\n");
-    return 0;
-}
-```
-
-### Интеграционные тесты
-
+**macOS (Homebrew):**
 ```bash
-# Компилируем с тестами
-gcc -g -O0 tests.c s21_tetris.c s21_tetris_internals.c s21_tetris_pieces.c -o test_tetris
-
-# Запускаем с GDB для отладки
-gdb ./test_tetris
+brew install gcc make cmocka valgrind lcov doxygen graphviz clang-format cppcheck
 ```
 
----
+## Сборка
 
-## ❓ Часто задаваемые вопросы
+### Сборка с помощью Makefile
 
-### Q: Как изменить размер поля?
-**A:** Измените константы в `s21_tetris_internals.h`:
-```c
-#define TETRIS_FIELD_ROWS 20  // Измените на нужное значение
-#define TETRIS_FIELD_COLS 10
-```
-Затем пересоберите проект.
+#### Цели Makefile
 
-### Q: Как добавить новый тип фигуры?
-**A:** 
-1. Добавьте новый тип в `s21_tetris_pieces.c`
-2. Увеличьте `TETRIS_NUM_PIECES`
-3. Добавьте форму в `TETROMINO_DATA`
+| Цель | Описание |
+|------|----------|
+| `all` | Полная сборка (тесты → сборка → документация → установка) |
+| `build` | Сборка статической/динамической библиотеки |
+| `install` | Установка библиотеки и заголовков |
+| `uninstall` | Удаление установленной библиотеки |
+| `test` | Запуск всех тестов |
+| `linter-test` | Проверка стиля кода и статический анализ |
+| `unit-test` | Сборка и запуск юнит-тестов |
+| `mem-test` | Проверка утечек памяти через valgrind |
+| `gcov-report` | Генерация отчёта о покрытии кода |
+| `dvi` | Генерация документации (Doxygen) |
+| `clean` | Удаление артефактов сборки |
+| `help` | Справка по доступным целям |
 
-### Q: Как ускорить игру?
-**A:** Уменьшите время между `tetris_update()` вызовами или используйте опцию `-O3` при компиляции.
+#### Варианты сборки с примерами команд Makefile
 
-### Q: Потокобезопасна ли библиотека?
-**A:** **Нет.** Все функции работают с общим состоянием и требуют синхронизации при использовании из нескольких потоков.
-
-### Q: Как сохранить состояние игры?
-**A:** Рекорд сохраняется автоматически в `~/.brickgame/tetris.score`. Для полного состояния вам нужно сохранить структуру вручную.
-
----
-
-## 📝 Документация и ссылки
-
-- **Doxygen документация:** Генерируется из комментариев в исходном коде
-- **Tetris Guideline:** https://tetris.fandom.com/wiki/Tetris_Guideline
-- **FSM паттерны:** https://en.wikipedia.org/wiki/Finite-state_machine
-
----
-
-## 🔧 Компиляция
-
-### С поддержкой отладки
+**Статическая библиотека (по умолчанию):**
 ```bash
-gcc -g -O0 -Wall -Wextra -std=c99 -c s21_tetris*.c s21_tetris_pieces.c
+make build LIBTYPE=static
+# или просто
+make build
 ```
+Результат: `build/libs21_tetris.a`
 
-### С оптимизацией
+**Динамическая библиотека:**
 ```bash
-gcc -O3 -Wall -std=c11 -c s21_tetris*.c s21_tetris_pieces.c
+make build LIBTYPE=dynamic
+```
+Результат: `build/libs21_tetris.so`
+
+#### Встраивание в пайплайн CI для GitHub с Makefile
+
+```yaml
+name: Build and Test s21_tetris
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
+    - name: Build and Test
+      run: |
+        make test
+        make build
+        make dvi
+        make install
 ```
 
-### С анализатором памяти
+#### Встраивание в пайплайн CI для GitLab с Makefile
+
+```yaml
+stages:
+  - test
+  - build
+  - docs
+
+variables:
+  CC: gcc
+  CFLAGS: -Wall -Wextra -std=c11
+
+before_script:
+  - apt-get update
+  - apt-get install -y build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
+
+unit-tests:
+  stage: test
+  script:
+    - make unit-test
+
+mem-check:
+  stage: test
+  script:
+    - make mem-test
+
+build-library:
+  stage: build
+  script:
+    - make build
+  artifacts:
+    paths:
+      - build/
+
+generate-docs:
+  stage: docs
+  script:
+    - make dvi
+  artifacts:
+    paths:
+      - docs/
+```
+
+## Тестирование
+
+### Состав тестов и особенности
+Тесты расположены в директории `tests/` и охватывают все функции библиотеки. Комплекс тестирования включает:
+
+* **Linter-тесты** (`linter-test`): Проверяют соответствие кода стилю Google C Style Guide с помощью `clang-format`, а также проводят статический анализ с помощью `cppcheck`.
+* **Юнит-тесты** (`unit-test`): Основной компонент тестирования, реализованный в `test_tetris.c` с использованием фреймворка CMocka. Проверяются все функции библиотеки, включая корректные сценарии и edge cases (null-указатели, невалидные операции, переполнение реестра и т.д.).
+* **Тесты на утечки памяти** (`mem-test`): Запускаются с помощью `valgrind` для детектирования утечек памяти, ошибок использования памяти и других проблем, связанных с управлением памятью.
+* **Отчёты о покрытии кода** (`gcov-report`): Генерируются с помощью `lcov` и `genhtml` на основе данных сборки с флагами `--coverage -g`. Отчёт в формате HTML показывает, какой процент кода покрыт юнит-тестами, что позволяет оценить качество тестового покрытия.
+
+### Необходимые зависимости для тестирования
+- **CMocka** (`libcmocka-dev`) — фреймворк юнит-тестирования
+- **Valgrind** (`valgrind`) — проверка утечек памяти
+- **LCOV** (`lcov`) — генерация отчётов о покрытии кода
+- **Clang-Format** (`clang-format`) — проверка стиля кода
+- **CppCheck** (`cppcheck`) — статический анализ кода
+
+### Тестирование с Makefile
+
+#### Цели Makefile для тестирования
+
+| Цель | Описание |
+|------|----------|
+| `test` | Запуск всех тестов (стиль, юнит-тесты, valgrind, покрытие) |
+| `linter-test` | Проверка стиля кода и статический анализ |
+| `unit-test` | Сборка и запуск юнит-тестов |
+| `mem-test` | Проверка утечек памяти через valgrind |
+| `gcov-report` | Генерация отчёта о покрытии кода |
+
+#### Встраивание в пайплайн CI
+
+**GitHub Actions:**
+```yaml
+- name: Run all tests
+  run: make test
+```
+
+**GitLab CI:**
+```yaml
+unit-tests:
+  stage: test
+  script:
+    - make unit-test
+
+mem-check:
+  stage: test
+  script:
+    - make mem-test
+```
+
+## Установка и линковка
+
+### Пример глобальной установки с Makefile
 ```bash
-gcc -g -fsanitize=address,undefined -c s21_tetris*.c s21_tetris_pieces.c
+make install
+# Библиотека установлена в ../build/lib/bin
+# Заголовки в ../build/lib/include
 ```
 
+### Пример локальной установки с Makefile
+```bash
+make install INSTALLDIR=$(HOME)/mylibs
+# Библиотека в $(HOME)/mylibs/bin
+# Заголовки в $(HOME)/mylibs/include
+```
+
+### Пример сборки и установки для дальнейшей линковки из вышестоящего Makefile
+```bash
+# Клонирование и установка библиотеки s21_tetris
+bgame-library:
+	git clone https://github.com/S21_brick_game.git
+	cd S21_brick_game/src/brick_game/tetris && make build && make install INSTALLDIR=$(PWD)/external
+
+# Флаги для компиляции и линковки
+CFLAGS += -I$(PWD)/external/include
+LDFLAGS += -L$(PWD)/external/bin -ls21_tetris -ls21_fsm -ls21_bgame -lm
+```
+
+### Пример использования в проекте в команде gcc
+```bash
+gcc -Wall -Wextra -std=c11 \
+    -I/usr/local/include \
+    -L/usr/local/lib \
+    my_program.c -o my_program \
+    -ls21_tetris -ls21_fsm -ls21_bgame -lm
+```
+
+## Документация
+
+### Требования для генерации документации
+Для генерации документации с помощью Doxygen требуются следующие зависимости:
+- **Doxygen** (`doxygen`) — генерация документации
+- **Graphviz** (`graphviz`) — визуализация диаграмм в документации
+
+### Генерация документации с Makefile
+```bash
+# Сборка документации
+make dvi
+```
+
+### Встраивание в пайплайн CI для GitHub с Makefile
+```yaml
+- name: Generate Documentation
+  run: make dvi
+  # Документация будет доступна в директории docs/
+```
+
+### Встраивание в пайплайн CI для GitLab с Makefile
+```yaml
+generate-docs:
+  stage: docs
+  script:
+    - make dvi
+  artifacts:
+    paths:
+      - docs/
+```
+
+## Очистка
+
+### Для Makefile
+```bash
+make clean
+```
+
+## Описание порядка выполнения
+
+### при make all
+1. Проверка окружения (gcc, make)
+2. Создание необходимых директорий
+3. Проверка зависимостей инструментов
+4. **Линтинг:**
+   - Проверка стиля кода (clang-format)
+   - Статический анализ (cppcheck)
+5. **Юнит-тесты:**
+   - Компиляция с флагами покрытия (--coverage -g)
+   - Запуск тестов с зависимостями (-lcmocka -lm)
+   - Проверка памяти (valgrind)
+   - Генерация отчёта о покрытии (lcov/genhtml)
+6. **Сборка:**
+   - Компиляция исходных файлов
+   - Создание библиотеки (.a или .so)
+7. **Документация:**
+   - Проверка окружения (doxygen, graphviz)
+   - Генерация Doxygen документации
+8. **Установка:**
+   - Копирование библиотеки в INSTALLDIR/bin
+   - Копирование заголовков в INSTALLDIR/include
+
+## Описание переменных окружения
+
+| Переменная | По умолчанию | Описание |
+|------------|-------------|---------|
+| `INSTALLDIR` | (зависит от системы) | Директория установки |
+| `LIBTYPE` | `static` | Тип библиотеки (`static` или `dynamic`) |
+| `CC` | `gcc` | C компилятор |
+| `CFLAGS` | (см. Makefile) | Флаги компиляции |
+
+## Быстрый старт
+
+### Для Makefile
+```bash
+# Клонирование репозитория
+git clone https://github.com/S21_brick_game.git
+# Переход в директорию подпроекта
+cd S21_brick_game/src/brick_game/tetris
+# Сборка библиотеки (статическая)
+make build
+
+# Запуск всех тестов
+make test
+
+# Установка в ../build/lib
+make install
+```
+
+## Решение проблем
+
+### Ошибка: "gcc: command not found"
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential
+
+# Fedora
+sudo dnf install gcc make
+```
+
+### Ошибка: "cmocka.h: No such file"
+```bash
+# Ubuntu/Debian
+sudo apt-get install libcmocka-dev
+
+# Fedora
+sudo dnf install libcmocka-devel
+```
+
+### Тесты не компилируются
+Убедитесь, что установлена библиотека `cmocka`:
+```bash
+pkg-config --cflags --libs cmocka
+```
+
+### Valgrind не установлен
+```bash
+# Ubuntu/Debian
+sudo apt-get install valgrind
+
+# Fedora
+sudo dnf install valgrind
+```
+
+## Контакты и поддержка
+
+Для вопросов и багов используйте систему issue репозитория.
+
+## История версий
+
+### v1.0 (2025-12-16)
+- Первый релиз
+- Полная реализация Тетриса
+- Интеграция с общим API (s21_bgame)
+- Полное покрытие юнит-тестами
+- Документация Doxygen
+
 ---
 
-## 📄 Лицензия
-
-Код распространяется под лицензией **MIT** (или укажите вашу лицензию).
-
----
-
-## 👥 Автор
-
-**provemet** — разработчик архитектуры и реализации (v2.2, 2025-12-18)
-
----
-
-## 📞 Поддержка
-
-Для вопросов, ошибок и предложений создавайте issues в репозитории проекта.
-
----
-
-**Версия документации:** 2.2  
-**Дата обновления:** 2025-12-26  
-**Статус:** ✅ Актуально
+**Последнее обновление:** 2025-12-16
