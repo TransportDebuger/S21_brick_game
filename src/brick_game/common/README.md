@@ -4,29 +4,23 @@ s21_bgame — это универсальная библиотека на язы
 
 Разработана как часть проекта s21_brick_game и предназначена для использования в составе более крупного приложения, реализующего классические аркадные игры.
 
-## Основные возможности
+## Описание проекта
 
-- Регистрация игр по уникальному идентификатору (GameId_t)
-- Динамическое переключение между играми без перезагрузки
-- Унифицированный интерфейс (GameInterface_t) для всех игр
-- Безопасный доступ к состоянию игры через GameInfo_t
+Библиотека s21_bgame предоставляет набор инструментов для создания и управления игровым фреймворком с поддержкой нескольких игр на базе консольного интерфейса. Она разработана в рамках проекта по реализации серии "кирпичных" игр (Тетрис, Змейка и др.) и встраивается в архитектуру проекта через FSM (Finite State Machine).
+
+Реализация s21_bgame в качестве отдельной библиотеки позволяет избежать дублирования кода между разными реализациями игр и обеспечивает возможность повторного использования компонентов в проектах на других языках (C++, Python, Go, Java) через соответствующие биндинги.
+
+**Основные возможности:**
+- Регистрация и переключение между играми (Tetris, Snake)
+- Унифицированный интерфейс взаимодействия (GameInterface_t)
 - Поддержка ввода пользователя через единый API
-- Потоконебезопасная (предполагается однопоточный режим)
-- Полностью настраиваемая сборка (статическая/динамическая библиотека)
+- Безопасный доступ к состоянию игры (GameInfo_t)
+- Поддержка статической и динамической сборки
+- Полное покрытие юнит-тестами
+- Проверка утечек памяти (valgrind)
+- Генерация документации (Doxygen)
 
-## Структура проекта
-
-```
-brick_game/common/
-├── s21_bgame.h         # Основной заголовочный файл
-├── s21_bgame.c         # Реализация фреймворка
-├── tests/
-│   └── test_bgame.c    # Unit-тесты (CMocka)
-├── Makefile            # Система сборки
-└── Doxyfile            # Конфигурация Doxygen
-```
-
-## API: Ключевые компоненты
+## API: ключевые компоненты
 
 ### GameId_t — Идентификаторы игр
 
@@ -50,112 +44,379 @@ typedef enum {
 
 Структура с виртуальными функциями:
 
-create() — создаёт экземпляр
-destroy() — уничтожает экземпляр
-input() — обработка ввода
-update() — игровой тик
-get_info() — получение состояния
+- `create()` — создаёт экземпляр игры
+- `destroy()` — уничтожает экземпляр
+- `input()` — обработка ввода пользователя
+- `update()` — выполнение игрового тика
+- `get_info()` — получение текущего состояния игры
 
 ### Глобальные функции
-bg_register_game() — регистрация игры
-bg_switch_game() — переключение на игру
-userInput() — отправка ввода
-updateCurrentState() — получение состояния
 
-Использование
+- `bg_register_game()` — регистрация интерфейса игры в системе
+- `bg_switch_game()` — переключение активной игры
+- `userInput()` — передача пользовательского ввода
+- `updateCurrentState()` — получение текущего состояния игры
 
-1. Регистрация игры
-```c
-GameInterface_t tetris_iface = tetris_get_interface(GAME_TETRIS);
-bg_register_game(tetris_iface);
+## Требования
+
+### Обязательные зависимости:
+- **GCC** - компилятор C (версия 11.0 или выше)
+- **GNU Make** - система сборки
+
+### Опциональные зависимости:
+- **CMocka** (`libcmocka-dev`) - фреймворк для юнит-тестирования
+- **Valgrind** (`valgrind`) - проверка утечек памяти
+- **LCOV** (`lcov`) - генерация отчётов о покрытии кода
+- **Doxygen** (`doxygen`) - генерация документации
+- **Graphviz** (`graphviz`) - визуализация для Doxygen
+- **Clang-Format** (`clang-format`) - проверка стиля кода
+- **CppCheck** (`cppcheck`) - статический анализ кода
+
+### Установка зависимостей
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
 ```
-2. Переключение на игру
-```c
-if (bg_switch_game(GAME_TETRIS)) {
-    printf("Игра запущена!\n");
-}
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install gcc make libcmocka-devel valgrind lcov doxygen graphviz clang-tools-extra cppcheck
 ```
-3. Обработка ввода
-```c
-userInput(Left, false);   // Движение влево
-userInput(Down, true);    // Ускоренное падение
-userInput(Action, false); // Поворот фигуры
+
+**macOS (Homebrew):**
+```bash
+brew install gcc make cmocka valgrind lcov doxygen graphviz clang-format cppcheck
 ```
-4. Получение состояния
-```c
-GameInfo_t info = updateCurrentState();
-// info.field — игровое поле
-// info.score — счёт
-// info.pause — пауза
+
+## Сборка
+
+### Сборка с помощью Makefile
+
+#### Цели Makefile
+
+| Цель | Описание |
+|------|----------|
+| `all` | Полная сборка (тесты → сборка → документация → установка) |
+| `build` | Сборка статической/динамической библиотеки |
+| `install` | Установка библиотеки и заголовков |
+| `uninstall` | Удаление установленной библиотеки |
+| `test` | Запуск всех тестов |
+| `linter-test` | Проверка стиля кода и статический анализ |
+| `unit-test` | Сборка и запуск юнит-тестов |
+| `mem-test` | Проверка утечек памяти через valgrind |
+| `gcov-report` | Генерация отчёта о покрытии кода |
+| `dvi` | Генерация документации (Doxygen) |
+| `clean` | Удаление артефактов сборки |
+| `help` | Справка по доступным целям |
+
+#### Варианты сборки с примерами команд Makefile
+
+**Статическая библиотека (по умолчанию):**
+```bash
+make build LIBTYPE=static
+# или просто
+make build
+```
+Результат: `build/libs21_bgame.a`
+
+**Динамическая библиотека:**
+```bash
+make build LIBTYPE=dynamic
+```
+Результат: `build/libs21_bgame.so`
+
+#### Встраивание в пайплайн CI для GitHub с Makefile
+
+```yaml
+name: Build and Test s21_bgame
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
+    - name: Build and Test
+      run: |
+        make test
+        make build
+        make dvi
+        make install
+```
+
+#### Встраивание в пайплайн CI для GitLab с Makefile
+
+```yaml
+stages:
+  - test
+  - build
+  - docs
+
+variables:
+  CC: gcc
+  CFLAGS: -Wall -Wextra -std=c11
+
+before_script:
+  - apt-get update
+  - apt-get install -y build-essential libcmocka-dev valgrind lcov doxygen graphviz clang-format cppcheck
+
+unit-tests:
+  stage: test
+  script:
+    - make unit-test
+
+mem-check:
+  stage: test
+  script:
+    - make mem-test
+
+build-library:
+  stage: build
+  script:
+    - make build
+  artifacts:
+    paths:
+      - build/
+
+generate-docs:
+  stage: docs
+  script:
+    - make dvi
+  artifacts:
+    paths:
+      - docs/
 ```
 
 ## Тестирование
 
-Библиотека покрыта полным набором unit-тестов на базе CMocka, включая проверки:
+### Состав тестов и особенности
+Тесты расположены в директории `tests/` и охватывают все функции библиотеки. Комплекс тестирования включает:
 
-Регистрации и получения игр
-Переключения между играми
-Обработки ввода
-Обновления состояния
-Граничных случаев (ошибки создания, переполнение реестра)
-Запуск тестов:
+* **Linter-тесты** (`linter-test`): Проверяют соответствие кода стилю Google C Style Guide с помощью `clang-format`, а также проводят статический анализ с помощью `cppcheck`.
+* **Юнит-тесты** (`unit-test`): Основной компонент тестирования, реализованный в `test_bgame.c` с использованием фреймворка CMocka. Проверяются все функции библиотеки, включая корректные сценарии и edge cases (null-указатели, невалидные операции, переполнение реестра и т.д.).
+* **Тесты на утечки памяти** (`mem-test`): Запускаются с помощью `valgrind` для детектирования утечек памяти, ошибок использования памяти и других проблем, связанных с управлением памятью.
+* **Отчёты о покрытии кода** (`gcov-report`): Генерируются с помощью `lcov` и `genhtml` на основе данных сборки с флагами `--coverage -g`. Отчёт в формате HTML показывает, какой процент кода покрыт юнит-тестами, что позволяет оценить качество тестового покрытия.
 
-```bash
-make test
+### Необходимые зависимости для тестирования
+- **CMocka** (`libcmocka-dev`) — фреймворк юнит-тестирования
+- **Valgrind** (`valgrind`) — проверка утечек памяти
+- **LCOV** (`lcov`) — генерация отчётов о покрытии кода
+- **Clang-Format** (`clang-format`) — проверка стиля кода
+- **CppCheck** (`cppcheck`) — статический анализ кода
+
+### Тестирование с Makefile
+
+#### Цели Makefile для тестирования
+
+| Цель | Описание |
+|------|----------|
+| `test` | Запуск всех тестов (стиль, юнит-тесты, valgrind, покрытие) |
+| `linter-test` | Проверка стиля кода и статический анализ |
+| `unit-test` | Сборка и запуск юнит-тестов |
+| `mem-test` | Проверка утечек памяти через valgrind |
+| `gcov-report` | Генерация отчёта о покрытии кода |
+
+#### Встраивание в пайплайн CI
+
+**GitHub Actions:**
+```yaml
+- name: Run all tests
+  run: make test
 ```
 
-Тесты включают проверку:
+**GitLab CI:**
+```yaml
+unit-tests:
+  stage: test
+  script:
+    - make unit-test
 
-Утечек памяти (valgrind)
-Стиля кода (clang-format)
-Статический анализ (cppcheck)
-Покрытия кода (gcov, lcov)
-
-### Покрытие и безопасность
-
-Покрытие кода: >90% (с отчётом в HTML)
-Обработка ошибок: защита от NULL-указателей, валидация интерфейса
-Ленивая инициализация: реестр инициализируется при первом использовании
-Ограничение регистра: до 8 игр (настраиваемо)
-
-## Сборка
-
-Поддерживается статическая и динамическая сборка.
-
-Сборка библиотеки
-```bash
-make                    # Собрать (по умолчанию — статическую)
-make LIBTYPE=dynamic    # Собрать динамическую
-make install            # Установить в систему
+mem-check:
+  stage: test
+  script:
+    - make mem-test
 ```
 
-## Зависимости
+## Установка и линковка
 
-gcc, make
-clang-format, cppcheck (линтинг)
-cmocka, valgrind, lcov (тестирование)
-doxygen, graphviz (документация)
+### Пример глобальной установки с Makefile
+```bash
+make install
+# Библиотека установлена в ../build/lib/bin
+# Заголовки в ../build/lib/include
+```
+
+### Пример локальной установки с Makefile
+```bash
+make install INSTALLDIR=$(HOME)/mylibs
+# Библиотека в $(HOME)/mylibs/bin
+# Заголовки в $(HOME)/mylibs/include
+```
+
+### Пример сборки и установки для дальнейшей линковки из вышестоящего Makefile
+```bash
+# Клонирование и установка библиотеки s21_bgame
+bgame-library:
+	git clone https://github.com/S21_brick_game.git
+	cd S21_brick_game/src/brick_game/common && make build && make install INSTALLDIR=$(PWD)/external
+
+# Флаги для компиляции и линковки
+CFLAGS += -I$(PWD)/external/include
+LDFLAGS += -L$(PWD)/external/bin -ls21_bgame
+```
+
+### Пример использования в проекте в команде gcc
+```bash
+gcc -Wall -Wextra -std=c11 \
+    -I/usr/local/include \
+    -L/usr/local/lib \
+    my_program.c -o my_program \
+    -ls21_bgame -lm
+```
 
 ## Документация
 
-Автоматически генерируемая документация с помощью Doxygen:
+### Требования для генерации документации
+Для генерации документации с помощью Doxygen требуются следующие зависимости:
+- **Doxygen** (`doxygen`) — генерация документации
+- **Graphviz** (`graphviz`) — визуализация диаграмм в документации
 
+### Генерация документации с Makefile
 ```bash
+# Сборка документации
 make dvi
 ```
-Результат: docs/html/index.html
+
+### Встраивание в пайплайн CI для GitHub с Makefile
+```yaml
+- name: Generate Documentation
+  run: make dvi
+  # Документация будет доступна в директории docs/
+```
+
+### Встраивание в пайплайн CI для GitLab с Makefile
+```yaml
+generate-docs:
+  stage: docs
+  script:
+    - make dvi
+  artifacts:
+    paths:
+      - docs/
+```
 
 ## Очистка
+
+### Для Makefile
 ```bash
 make clean
 ```
-## Лицензия
-MIT — свободное использование и модификация.
 
-## Автор
-provemet
-Разработчик игрового фреймворка
-Дата: 2025
+## Описание порядка выполнения
 
-### Совет: 
-Для разработки новых игр реализуйте GameInterface_t и зарегистрируйте через bg_register_game(). Библиотека автоматически интегрирует её в систему.
+### при make all
+1. Проверка окружения (gcc, make)
+2. Создание необходимых директорий
+3. Проверка зависимостей инструментов
+4. **Линтинг:**
+   - Проверка стиля кода (clang-format)
+   - Статический анализ (cppcheck)
+5. **Юнит-тесты:**
+   - Компиляция с флагами покрытия (--coverage -g)
+   - Запуск тестов с зависимостями (-lcmocka -lm)
+   - Проверка памяти (valgrind)
+   - Генерация отчёта о покрытии (lcov/genhtml)
+6. **Сборка:**
+   - Компиляция исходных файлов
+   - Создание библиотеки (.a или .so)
+7. **Документация:**
+   - Проверка окружения (doxygen, graphviz)
+   - Генерация Doxygen документации
+8. **Установка:**
+   - Копирование библиотеки в INSTALLDIR/bin
+   - Копирование заголовков в INSTALLDIR/include
+
+## Описание переменных окружения
+
+| Переменная | По умолчанию | Описание |
+|------------|-------------|---------|
+| `INSTALLDIR` | (зависит от системы) | Директория установки |
+| `LIBTYPE` | `static` | Тип библиотеки (`static` или `dynamic`) |
+| `CC` | `gcc` | C компилятор |
+| `CFLAGS` | (см. Makefile) | Флаги компиляции |
+
+## Быстрый старт
+
+### Для Makefile
+```bash
+# Клонирование репозитория
+git clone https://github.com/S21_brick_game.git
+# Переход в директорию подпроекта
+cd S21_brick_game/src/brick_game/common
+# Сборка библиотеки (статическая)
+make build
+
+# Запуск всех тестов
+make test
+
+# Установка в ../build/lib
+make install
+```
+
+## Решение проблем
+
+### Ошибка: "gcc: command not found"
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential
+
+# Fedora
+sudo dnf install gcc make
+```
+
+### Ошибка: "cmocka.h: No such file"
+```bash
+# Ubuntu/Debian
+sudo apt-get install libcmocka-dev
+
+# Fedora
+sudo dnf install libcmocka-devel
+```
+
+### Тесты не компилируются
+Убедитесь, что установлена библиотека `cmocka`:
+```bash
+pkg-config --cflags --libs cmocka
+```
+
+### Valgrind не установлен
+```bash
+# Ubuntu/Debian
+sudo apt-get install valgrind
+
+# Fedora
+sudo dnf install valgrind
+```
+
+## Контакты и поддержка
+
+Для вопросов и багов используйте систему issue репозитория.
+
+## История версий
+
+### v1.0 (2025-12-16)
+- Первый релиз
+- Поддержка Tetris и Snake
+- Полное покрытие юнит-тестами
+- Документация Doxygen
+
+---
+
+
+**Последнее обновление:** 2025-12-16
