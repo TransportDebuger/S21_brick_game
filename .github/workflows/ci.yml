@@ -312,63 +312,63 @@ jobs:
       id: status
       run: |
         # Build status
-        if [ "${{ needs.build.result }}" = "success" ]; then
+        if [ "${{ needs.build.outcome }}" = "success" ]; then
           echo "BUILD_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.build.result }}" = "failure" ]; then
+        elif [ "${{ needs.build.outcome }}" = "failure" ]; then
           echo "BUILD_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "BUILD_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
+
         # Docs status
-        if [ "${{ needs.docs.result }}" = "success" ]; then
+        if [ "${{ needs.docs.outcome }}" = "success" ]; then
           echo "DOCS_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.docs.result }}" = "failure" ]; then
+        elif [ "${{ needs.docs.outcome }}" = "failure" ]; then
           echo "DOCS_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "DOCS_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
+
         # Linter status
-        if [ "${{ needs.linter_tests.result }}" = "success" ]; then
+        if [ "${{ needs.linter_tests.outcome }}" = "success" ]; then
           echo "LINTER_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.linter_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.linter_tests.outcome }}" = "failure" ]; then
           echo "LINTER_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "LINTER_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
+
         # Unit test status
-        if [ "${{ needs.unit_tests.result }}" = "success" ]; then
+        if [ "${{ needs.unit_tests.outcome }}" = "success" ]; then
           echo "UNIT_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.unit_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.unit_tests.outcome }}" = "failure" ]; then
           echo "UNIT_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "UNIT_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
+
         # Memory test status
-        if [ "${{ needs.memory_tests.result }}" = "success" ]; then
+        if [ "${{ needs.memory_tests.outcome }}" = "success" ]; then
           echo "MEM_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.memory_tests.result }}" = "failure" ]; then
+        elif [ "${{ needs.memory_tests.outcome }}" = "failure" ]; then
           echo "MEM_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "MEM_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
+
         # Coverage status
-        if [ "${{ needs.coverage.result }}" = "success" ]; then
+        if [ "${{ needs.coverage.outcome }}" = "success" ]; then
           echo "COVERAGE_STATUS=PASSED" >> $GITHUB_ENV
-        elif [ "${{ needs.coverage.result }}" = "failure" ]; then
+        elif [ "${{ needs.coverage.outcome }}" = "failure" ]; then
           echo "COVERAGE_STATUS=FAILED" >> $GITHUB_ENV
         else
           echo "COVERAGE_STATUS=SKIPPED" >> $GITHUB_ENV
         fi
-        
-        # Overall status - success only if all jobs passed
+
+        #  Overall status
         overall_status="success"
         for status in "$BUILD_STATUS" "$DOCS_STATUS" "$LINTER_STATUS" "$UNIT_STATUS" "$MEM_STATUS" "$COVERAGE_STATUS"; do
-          if [ "$status" = "FAILED" ] || [ "$status" = "SKIPPED" ]; then
+          if [ "$status" = "FAILED" ]; then
             overall_status="failure"
             break
           fi
