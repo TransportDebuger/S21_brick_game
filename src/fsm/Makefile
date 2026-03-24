@@ -77,8 +77,8 @@ CLFORMATFLAGS := --style=Google --dry-run
 CPPCHECK := cppcheck
 CPPCHECKFLAGS := --enable=all \
                  --suppress=missingIncludeSystem \
-                 --suppress=unusedFunction \
 				 --suppress=unusedStructMember \
+                 --suppress=unusedFunction \
 	             --language=c --std=c11 \
                  --error-exitcode=1 $(SOURCES) $(INCLUDES)
 
