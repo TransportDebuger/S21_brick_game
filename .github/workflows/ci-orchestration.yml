@@ -5,10 +5,23 @@ on:
     branches: [ main ]
     paths:
       - 'src/fsm/**'
+      - 'src/brick_game/common/**'
 
 jobs:
   fsm-library-ci:
+    if: ${{ github.event_name == 'push' && (contains(join(github.event.commits.*.modified, ' '), 'src/fsm/') ||
+      contains(join(github.event.commits.*.added, ' '), 'src/fsm/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'src/fsm/')) }}
     uses: ./.github/workflows/fsm-ci.yml
+    with:
+      ref: ${{ github.sha }}
+    secrets: inherit
+
+  bgame-library-ci:
+    if: ${{ github.event_name == 'push' && (contains(join(github.event.commits.*.modified, ' '), 'src/brick_game/common/') ||
+      contains(join(github.event.commits.*.added, ' '), 'src/brick_game/common/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'src/brick_game/common/')) }}
+    uses: ./.github/workflows/bgamelib-ci.yml
     with:
       ref: ${{ github.sha }}
     secrets: inherit

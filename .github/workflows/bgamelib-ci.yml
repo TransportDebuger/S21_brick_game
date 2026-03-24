@@ -1,4 +1,4 @@
-name: FSM Library CI
+name: Brick Game Library CI
 
 on:
   workflow_call:
@@ -10,103 +10,103 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.ref }}
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install build-essential
-    
-    - name: Build static library
-      id: build_step
-      run: |
-        cd src/fsm
-        if make build 2> build_error.log; then
-          echo "BUILD_STATUS=success" >> $GITHUB_ENV
-        else
-          echo "BUILD_STATUS=failure" >> $GITHUB_ENV
-          # Создаем артефакт с логами ошибок
-          mkdir -p ../build_logs
-          cp build_error.log ../build_logs/
-        fi
-    
-    - name: Build dynamic library
-      id: build_step
-      run: |
-        cd src/fsm
-        if make build LIBTYPE=dynamic 2> build_error.log; then
-          echo "BUILD_STATUS=success" >> $GITHUB_ENV
-        else
-          echo "BUILD_STATUS=failure" >> $GITHUB_ENV
-          # Создаем артефакт с логами ошибок
-          mkdir -p ../build_logs
-          cp build_error.log ../build_logs/
-        fi
-    
-    - name: Upload artifacts
-      if: env.BUILD_STATUS == 'success'
-      uses: actions/upload-artifact@v4
-      with:
-        name: fsm-library
-        path: |
-          src/fsm/build/
-          src/fsm/s21_fsm.h
-        retention-days: 5
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
-    - name: Upload build logs
-      if: env.BUILD_STATUS == 'failure'
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-errors
-        path: build_logs/
-        retention-days: 5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential
+    
+      - name: Build static library
+        id: build_step
+        run: |
+          cd src/brick_game/common
+          if make build 2> build_error.log; then
+            echo "BUILD_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "BUILD_STATUS=failure" >> $GITHUB_ENV
+            # Создаем артефакт с логами ошибок
+            mkdir -p ../build_logs
+            cp build_error.log ../build_logs/
+          fi
 
-    - name: Get artifact download URL
-      if: env.BUILD_STATUS == 'success'
-      id: get_artifact_url
-      run: |
-        # Получаем ID последнего запуска
-        RUN_ID=${{ github.run_id }}
-        
-        # Получаем список артефактов
-        ARTIFACTS_RESPONSE=$(curl -s -X GET \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts")
-        
-        # Извлекаем URL для артефакта fsm-library
-        # Извлекаем ID артефакта fsm-library
-        ARTIFACT_ID=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="fsm-library") | .id')
-        
-        if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
-          echo "ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
-        fi
-    
-    - name: Send Telegram Notification (Build Success)
-      if: env.BUILD_STATUS == 'success' && env.ARTIFACT_API_URL != ''
-      run: |
-        TEXT="✅ Сборка успешна! %0A%0A Проект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
-        
-        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
-    
-    - name: Send Telegram Notification (Build Success - No Direct URL)
-      if: env.BUILD_STATUS == 'success' && (env.ARTIFACT_API_URL == '' || env.ARTIFACT_API_URL == null)
-      run: |
-        TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
-        
-        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
-    
-    - name: Send Telegram Notification (Build Failure)
-      if: env.BUILD_STATUS == 'failure'
-      run: |
-        TEXT="❌ Сборка провалена!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.%0A%0AПодробные логи сборки: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-        
-        curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+      - name: Build dynamic library
+        id: build_step
+        run: |
+          cd src/brick_game/common
+          if make build LIBTYPE=dynamic 2> build_error.log; then
+            echo "BUILD_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "BUILD_STATUS=failure" >> $GITHUB_ENV
+            # Создаем артефакт с логами ошибок
+            mkdir -p ../build_logs
+            cp build_error.log ../build_logs/
+          fi
 
+      - name: Upload artifacts
+        if: env.BUILD_STATUS == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgame-library
+          path: |
+            src/brick_game/common/build/
+            src/brick_game/common/s21_bgame.h
+          retention-days: 5
+
+      - name: Upload build logs
+        if: env.BUILD_STATUS == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-errors
+          path: build_logs/
+          rention-days: 5
+
+      - name: Get artifact download URL
+        if: env.BUILD_STATUS == 'success'
+        id: get_artifact_url
+        run: |
+          # Получаем ID последнего запуска
+          RUN_ID=${{ github.run_id }}
+        
+          # Получаем список артефактов
+          ARTIFACTS_RESPONSE=$(curl -s -X GET \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts")
+        
+          # Извлекаем URL для артефакта bgame-library
+          # Извлекаем ID артефакта bgame-library
+          ARTIFACT_ID=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="bgame-library") | .id')
+        
+          if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
+            echo "ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
+          fi
+
+      - name: Send Telegram Notification (Build Success)
+        if: env.BUILD_STATUS == 'success' && env.ARTIFACT_API_URL != ''
+        run: |
+          TEXT="✅ Сборка успешна! %0A%0A Проект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
+        
+          curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+    
+      - name: Send Telegram Notification (Build Success - No Direct URL)
+        if: env.BUILD_STATUS == 'success' && (env.ARTIFACT_API_URL == '' || env.ARTIFACT_API_URL == null)
+        run: |
+          TEXT="✅ Сборка успешна!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AАртефакт сборки доступен по ссылке: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}/artifacts/${ARTIFACT_ID} %0AСсылка действует 5 дней."
+        
+          curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+    
+      - name: Send Telegram Notification (Build Failure)
+        if: env.BUILD_STATUS == 'failure'
+        run: |
+          TEXT="❌ Сборка провалена!%0A%0AПроект: ${GITHUB_REPOSITORY}%0AВетка: ${GITHUB_REF_NAME}%0AПайплайн: ${{ github.workflow }}%0A%0AЛоги ошибок доступны в разделе 'Действия' → последний запуск CI → вкладка 'Артефакты'.%0A%0AСкачать логи можно по кнопке 'build-errors' в интерфейсе GitHub.%0A%0AПодробные логи сборки: %0A https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        
+          curl -s --max-time 10 -d "chat_id=5671658394&disable_web_page_preview=1&text=$TEXT" "https://api.telegram.org/bot7254175446:AAF2ws9t2p4K93MDRPozESGuls8b7KASwso/sendMessage"
+  
   docs:
     needs: build
     if: needs.build.result == 'success'
@@ -124,7 +124,7 @@ jobs:
     
     - name: Generate documentation
       run: |
-        cd src/fsm
+        cd src/brick_game/common
         if make dvi 2> docs_error.log; then
           echo "DOCS_STATUS=success" >> $GITHUB_ENV
         else
@@ -135,8 +135,8 @@ jobs:
       if: env.DOCS_STATUS == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: fsm-documentation
-        path: src/fsm/docs/
+        name: bgamelib-documentation
+        path: src/brick_game/common/docs/
         retention-days: 5
 
     - name: Get docs artifact URL
@@ -152,9 +152,9 @@ jobs:
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts")
         
-        # Извлекаем URL для артефакта fsm-documentation
-        # Извлекаем ID артефакта fsm-documentation
-        ARTIFACT_ID=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="fsm-documentation") | .id')
+        # Извлекаем URL для артефакта bgamelib-documentation
+        # Извлекаем ID артефакта bgamelib-documentation
+        ARTIFACT_ID=$(echo $ARTIFACTS_RESPONSE | jq -r '.artifacts[] | select(.name=="bgamelib-documentation") | .id')
         
         if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
           echo "DOCS_ARTIFACT_ID=$ARTIFACT_ID" >> $GITHUB_ENV
@@ -199,7 +199,7 @@ jobs:
     - name: Run linter tests
       id: linter_test
       run: |
-        cd src/fsm
+        cd src/brick_game/common
         make linter-test
 
   unit_tests:
@@ -220,7 +220,7 @@ jobs:
     - name: Run unit tests
       id: unit_test
       run: |
-        cd src/fsm
+        cd src/brick_game/common
         make unit-test
     
     - name: Upload coverage artifacts
@@ -229,10 +229,10 @@ jobs:
       with:
         name: coverage-artifacts
         path: |
-          src/fsm/obj_cov/
-          src/fsm/tests/build/
+          src/brick_game/common/obj_cov/
+          src/brick_game/common/tests/build/
         retention-days: 5
-
+  
   memory_tests:
     runs-on: ubuntu-latest
     needs: unit_tests
@@ -251,7 +251,7 @@ jobs:
     - name: Run memory tests
       id: mem_test
       run: |
-        cd src/fsm
+        cd src/brick_game/common
         make mem-test
 
   coverage:
@@ -268,7 +268,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: coverage-artifacts
-        path: src/fsm
+        path: src/brick_game/common
     
     - name: Install dependencies
       run: |
@@ -277,13 +277,13 @@ jobs:
     
     - name: Generate coverage report
       run: |
-        cd src/fsm
+        cd src/brick_game/common
         make gcov-report
     
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
-        file: src/fsm/tests/coverage/coverage.info
+        file: src/brick_game/common/tests/coverage/coverage.info
     
     - name: Upload HTML coverage report
       if: success()
