@@ -63,7 +63,7 @@ jobs:
         with:
           name: build-errors
           path: build_logs/
-          rention-days: 5
+          retention-days: 5
 
       - name: Get artifact download URL
         if: env.BUILD_STATUS == 'success'
@@ -281,7 +281,7 @@ jobs:
         make gcov-report
     
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
       with:
         file: src/brick_game/common/tests/coverage/coverage.info
     
