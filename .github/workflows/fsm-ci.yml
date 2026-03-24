@@ -1,9 +1,11 @@
 name: FSM Library CI
 
 on:
-  push:
-    paths:
-      - 'src/fsm/**'
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -11,6 +13,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Install dependencies
       run: |
@@ -97,6 +101,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Install dependencies
       run: |
@@ -169,6 +175,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Install dependencies
       run: |
@@ -188,6 +196,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Install dependencies
       run: |
@@ -217,6 +227,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Install dependencies
       run: |
@@ -236,6 +248,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Download coverage artifacts
       uses: actions/download-artifact@v4
@@ -274,6 +288,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
     
     - name: Determine job statuses
       id: status

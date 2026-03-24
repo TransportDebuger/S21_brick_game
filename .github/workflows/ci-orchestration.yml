@@ -1,0 +1,14 @@
+name: CI Orchestrator
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/fsm/**'
+
+jobs:
+  fsm-library-ci:
+    uses: ./.github/workflows/fsm-ci.yml
+    with:
+      ref: ${{ github.sha }}
+    secrets: inherit
