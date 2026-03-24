@@ -22,7 +22,7 @@ jobs:
           sudo apt-get install build-essential
     
       - name: Build static library
-        id: build_step
+        id: bgame_build_step
         run: |
           cd src/brick_game/common
           if make build 2> build_error.log; then
@@ -35,7 +35,7 @@ jobs:
           fi
 
       - name: Build dynamic library
-        id: build_step_dynamic
+        id: bgame_build_step_dynamic
         run: |
           cd src/brick_game/common
           if make build LIBTYPE=dynamic 2> build_error.log; then
