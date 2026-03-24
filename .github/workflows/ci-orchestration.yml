@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/fsm/**'
       - 'src/brick_game/common/**'
+      - '.github/workflows/**'
 
 jobs:
   fsm-library-ci:
