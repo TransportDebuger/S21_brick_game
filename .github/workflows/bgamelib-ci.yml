@@ -1,11 +1,9 @@
 name: Brick Game Library CI
 
 on:
-  workflow_call:
-    inputs:
-      ref:
-        required: true
-        type: string
+  push:
+    paths:
+      - 'src/brick_game/common/**'
 
 jobs:
   build:
