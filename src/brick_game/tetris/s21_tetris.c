@@ -211,6 +211,7 @@ const GameInfo_t *tetris_get_info(const void *g) {
 
 /* ---------------- Регистрация интерфейса игры ----------------------- */
 
+// Оригинальная функция, внутренняя реализация
 GameInterface_t tetris_get_interface(GameId_t id) {
   GameInterface_t iface = {0};
   if (id == GAME_TETRIS) {
@@ -223,4 +224,10 @@ GameInterface_t tetris_get_interface(GameId_t id) {
   }
 
   return iface;
+}
+
+// Экспортная точка для динамических библиотек
+__attribute__((visibility("default")))
+GameInterface_t get_game_interface(GameId_t id) {
+  return tetris_get_interface(id);
 }

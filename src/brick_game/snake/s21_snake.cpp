@@ -43,6 +43,7 @@ const GameInfo_t* snake_get_info(const void* game) {
   return s21::SnakeGame::get_info(game);  // без приведения!
 }
 
+// Оригинальная функция, внутренняя реализация
 GameInterface_t snake_get_interface(GameId_t id) {
   GameInterface_t iface = {GAME_UNDEFINED, nullptr, nullptr, nullptr, nullptr, nullptr,
   };
@@ -57,6 +58,12 @@ GameInterface_t snake_get_interface(GameId_t id) {
   }
 
   return iface;
+}
+
+// Экспортная точка для динамических библиотек
+__attribute__((visibility("default")))
+GameInterface_t get_game_interface(GameId_t id) {
+  return snake_get_interface(id);
 }
 
 }  // extern "C"

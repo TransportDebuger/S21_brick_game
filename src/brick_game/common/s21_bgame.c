@@ -23,178 +23,278 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
-
-/**
- * @brief Максимальное количество поддерживаемых игр в реестре
- *
- * Эта константа определяет верхний лимит на количество игр,
- * которые могут быть зарегистрированы в библиотеке одновременно
- * через функцию bg_register_game().
- *
- * @details
- * - Используется для фиксации размера внутреннего массива реестра игр.
- * - Ограничение введено для упрощения управления памятью без использования
- * динамического выделения.
- * - Типичные значения: Tetris, Snake и другие простые игры.
- *
- * При достижении лимита новые игры игнорируются.
- *
- * @note Значение 8 выбрано как разумный компромисс между гибкостью и
- * использованием памяти. В случае необходимости значение можно изменить, но
- * следует учитывать, что это влияет на размер статического массива в реестре.
- *
- * Пример использования:
- * @code
- * static GameRegistryEntry g_registry[BG_MAX_GAMES];
- * @endcode
- * @internal
- */
-#define BG_MAX_GAMES 8
+#include <stdlib.h>
+#include <dlfcn.h> // Для dlopen, dlsym, dlclose
 
 /* ======================== Реестр интерфейсов игр ====================== */
+
 
 /**
  * @brief Внутренняя запись в реестре зарегистрированных игр
  *
- * Структура представляет собой элемент реестра, хранящий интерфейс игры
- * и флаг её регистрации. Используется для отслеживания, какие игры
- * были зарегистрированы в библиотеке, и предотвращения дублирования.
+ * Структура представляет собой элемент реестра, хранящий интерфейс игры,
+ * дескриптор динамической библиотеки (для плагинов), путь к файлу и флаг её регистрации.
+ * Используется для отслеживания, какие игры были зарегистрированы в библиотеке.
  *
  * @details
- * - Поле `iface` содержит полный интерфейс игры (функции создания, обновления и
- * т.д.).
+ * - Поле `iface` содержит полный интерфейс игры (функции создания, обновления и т.д.).
+ * - Поле `library_handle` содержит дескриптор, возвращённый dlopen(). NULL для встроенных игр.
+ * - Поле `library_path` содержит копию пути к .so/.dll файлу. NULL для встроенных игр.
  * - Поле `registered` указывает, занята ли данная ячейка реестра.
  *
  * Реестр на основе этой структуры позволяет:
  * - Регистрировать игры по их уникальному ID.
- * - Получать доступ к интерфейсу игры по ID.
- * - Избегать повторной регистрации одной и той же игры.
+ * - Различать встроенные и динамически загруженные игры.
+ * - Корректно выгружать динамические библиотеки.
  *
- * Используется только внутри модуля `s21_bgame.c` и не экспортируется во
- * внешние интерфейсы.
+ * @note Используется только внутри модуля `s21_bgame.c` и не экспортируется во внешние интерфейсы.
  *
- * @note Максимальное количество зарегистрированных игр ограничено константой
- * BG_MAX_GAMES.
- *
- * Пример использования:
- * ```c
- * static GameRegistryEntry g_registry[BG_MAX_GAMES];
- *
- * // При регистрации новой игры:
- * for (int i = 0; i < BG_MAX_GAMES; ++i) {
- *     if (!g_registry[i].registered) {
- *         g_registry[i].iface = iface;
- *         g_registry[i].registered = true;
- *         break;
- *     }
- * }
- * ```
+ * @see s21_bgame.c::g_registry, s21_bgame.c::g_registry_capacity, s21_bgame.c::g_registry_size
  * @internal
  */
 typedef struct {
   GameInterface_t iface;  ///< Интерфейс зарегистрированной игры
-  bool registered;  ///< Флаг: true, если ячейка реестра занята
+  void* library_handle;   ///< Дескриптор динамической библиотеки (dlopen/LoadLibrary), NULL для встроенных игр.
+  char* library_path;     ///< Путь к .so/.dll файлу, NULL для встроенных игр.
+  bool registered;        ///< Флаг: true, если ячейка реестра занята.
 } GameRegistryEntry;
 
-/**
- * @brief Глобальный реестр зарегистрированных игр
- *
- * Массив фиксированного размера, хранящий интерфейсы всех зарегистрированных
- * игр. Каждая запись содержит сам интерфейс игры и флаг регистрации.
- *
- * @details
- * - Размер массива определяется константой BG_MAX_GAMES.
- * - Инициализируется один раз при первом вызове bg_init_registry() через
- * memset.
- * - Управление производится по флагу registered в каждой записи.
- *
- * @note Является внутренней статической переменной модуля s21_bgame.c.
- *       Не доступен за пределами этого файла.
- *
- * @see bg_register_game(), bg_get_game(), g_registry_initialized
- * @internal
- */
-static GameRegistryEntry g_registry[BG_MAX_GAMES];
 
 /**
- * @brief Флаг инициализации реестра игр
+ * @brief Глобальный реестр зарегистрированных игр (динамический массив)
  *
- * Указывает, была ли выполнена инициализация массива g_registry.
- * Используется для обеспечения однократной инициализации при первом
- * использовании (lazy initialization).
+ * Указатель на динамически выделяемый массив записей. Размер массива может изменяться.
  *
- * @details
- * - Значение false при старте.
- * - Устанавливается в true при первом вызове bg_init_registry().
- * - Повторные вызовы bg_init_registry() не производят инициализацию.
- *
- * @note Обеспечивает безопасность инициализации при множественных вызовах API.
- *
- * @see bg_init_registry(), g_registry
+ * @note Заменяет статический массив `g_registry[BG_MAX_GAMES]`. Память выделяется через malloc/realloc.
+ * @see bg_register_game(), registry_ensure_capacity()
  * @internal
  */
-static bool g_registry_initialized = false;
+static GameRegistryEntry* g_registry = NULL;
 
 /**
- * @brief Инициализирует реестр игр (ленивая инициализация)
+ * @brief Текущая ёмкость (capacity) динамического массива реестра.
  *
- * Выполняет однократную инициализацию глобального массива g_registry,
- * обнуляя все записи. Функция использует механизм lazy initialization —
- * реестр инициализируется при первом обращении, а все последующие вызовы
- * игнорируются благодаря флагу g_registry_initialized.
- *
- * @details
- * - Проверяет, была ли уже выполнена инициализация.
- * - Если нет — обнуляет массив реестра через memset.
- * - Устанавливает флаг инициализации в true.
- *
- * @note Используется внутри bg_register_game() и bg_get_game() для обеспечения
- *       потоконебезопасной (но корректной при однопоточном доступе)
- * инициализации.
- *
- * @warning Не является потокобезопасной. При многопоточном доступе возможны
- * гонки. Предполагается использование в однопоточном контексте при старте
- * приложения.
- *
- * @see bg_register_game(), bg_get_game(), g_registry, g_registry_initialized
+ * Количество элементов, которое может вместить `g_registry` без перераспределения памяти.
+ * @note Инициализируется 0.
+ * @see g_registry, g_registry_size
  * @internal
  */
-static void bg_init_registry(void) {
-  if (g_registry_initialized) return;
-  memset(g_registry, 0, sizeof(g_registry));
-  g_registry_initialized = true;
+static int g_registry_capacity = 0;
+
+/**
+ * @brief Текущее количество активных записей в реестре.
+ *
+ * Количество игр, для которых `registered` == true.
+ * @note Инициализируется 0.
+ * @see g_registry, g_registry_capacity
+ * @internal
+ */
+static int g_registry_size = 0;
+
+
+/**
+ * @brief Инициализирует динамический реестр игр (ленивая инициализация)
+ *
+ * Выполняет однократную инициализацию `g_registry` как NULL и сбрасывает счётчики.
+ * Функция использует механизм lazy initialization — реестр инициализируется при первом обращении.
+ *
+ * @details
+ * - Проверяет, была ли уже выполнена инициализация (`g_registry_capacity` == 0).
+ * - Если нет — устанавливает `g_registry` в NULL, `g_registry_size` в 0.
+ *   Реальное выделение памяти произойдет в `registry_ensure_capacity` при первой регистрации.
+ *
+ * @note Используется внутри bg_register_game() и bg_get_game() для обеспечения инициализации.
+ * @warning Не является потокобезопасной.
+ * @see bg_register_game(), bg_get_game(), registry_ensure_capacity()
+ * @internal
+ */
+static void registry_init(void) {
+  if (g_registry_capacity != 0) return; // Уже инициализирован
+  g_registry = NULL;
+  g_registry_size = 0;
+  g_registry_capacity = 0; // Обозначает, что инициализация прошла
+}
+
+/**
+ * @brief Обеспечивает доста��очную ёмкость динамического массива реестра.
+ *
+ * Увеличивает размер `g_registry` до `min_capacity`, если текущая ёмкость меньше требуемой.
+ * Использует стратегию удвоения (или больше), чтобы минимизировать количество вызовов `realloc`.
+ *
+ * @param[in] min_capacity Минимально требуемая ёмкость массива.
+ * @return true, если память была успешно выделена или уже была достаточной; false при ошибке выделения.
+ *
+ * @details
+ * 1. Если текущая ёмкость >= `min_capacity`, функция возвращает true без изменений.
+ * 2. Вычисляет новую ёмкость как максимальное значение из `min_capacity` и `g_registry_capacity * 2`.
+ * 3. Выделяет память для нового массива через `realloc`.
+ * 4. Если `realloc` успешен, копирует старые данные в новый массив, обновляет `g_registry` и `g_registry_capacity`.
+ * 5. Возвращает результат.
+ *
+ * @note При первом вызове (g_registry == NULL) функция работает как `malloc`.
+ * @warning Не является потокобезопасной. Не проверяет, что `min_capacity` положительно.
+ * @see registry_init(), bg_register_game()
+ * @internal
+ */
+static bool registry_ensure_capacity(int min_capacity) {
+  if (g_registry_capacity >= min_capacity) {
+    return true; // Ёмкость достаточна
+  }
+
+  int new_capacity = min_capacity;
+  if (new_capacity < 4) new_capacity = 4; // Минимальный размер
+  if (new_capacity < g_registry_capacity * 2) new_capacity = g_registry_capacity * 2; // Удвоение
+
+  GameRegistryEntry* new_registry = (GameRegistryEntry*) realloc(g_registry, new_capacity * sizeof(GameRegistryEntry));
+  if (!new_registry) {
+    return false; // Ошибка выделения памяти
+  }
+
+  // Если realloc увеличил память, инициализируем новые элементы
+  if (g_registry_capacity > 0 && new_capacity > g_registry_capacity) {
+    memset(&new_registry[g_registry_capacity], 0, (new_capacity - g_registry_capacity) * sizeof(GameRegistryEntry));
+  }
+
+  g_registry = new_registry;
+  g_registry_capacity = new_capacity;
+  return true;
+}
+
+/**
+ * @brief Ищет запись в реестре по идентификатору игры.
+ *
+ * Проходит по всем активным записям реестра и возвращает индекс первой,
+ * у которой `registered` == true и `iface.id` совпадает с `id`.
+ *
+ * @param[in] id Идентификатор игры (GameId_t) для поиска.
+ * @return Индекс записи в массиве `g_registry`, если найдена; -1, если игра не найдена.
+ *
+ * @note Функция предполагает, что `g_registry` инициализирован (registry_init вызван).
+ * @warning Не является потокобезопасной.
+ * @see bg_get_game(), bg_load_plugin()
+ * @internal
+ */
+static int registry_find_by_id(GameId_t id) {
+  for (int i = 0; i < g_registry_capacity; ++i) {
+    if (g_registry[i].registered && g_registry[i].iface.id == id) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * @brief Добавляет новую запись в реестр игр.
+ *
+ * Находит первую пустую ячейку в реестре и копирует в неё переданную запись.
+ * Перед добавлением гарантирует, что в массиве достаточно места.
+ *
+ * @param[in] entry Указатель на запись `GameRegistryEntry`, которую нужно добавить.
+ * @return true, если запись была успешно добавлена; false при ошибке выделения памяти.
+ *
+ * @details
+ * 1. Проверяет, что в реестре есть свободное место. Если нет, вызывает `registry_ensure_capacity`.
+ * 2. Ищет индекс первой незарегистрированной ячейки.
+ * 3. Копирует данные из `*entry` в найденную ячейку.
+ * 4. Устанавливает `registered` в `true`.
+ * 5. Увеличивает `g_registry_size`.
+ * 6. Возвращает `true`.
+ *
+ * @note Функция не проверяет дубликаты по `id`. Это должна делать вызывающая функция.
+ * @warning Не является потокобезопасной.
+ * @see bg_register_game(), bg_load_plugin()
+ * @internal
+ */
+static bool registry_add_entry(const GameRegistryEntry* entry) {
+  // Гарантируем, что есть место хотя бы для одного элемента
+  if (!registry_ensure_capacity(g_registry_size + 1)) {
+    return false;
+  }
+
+  // Ищем первую пустую ячейку
+  for (int i = 0; i < g_registry_capacity; ++i) {
+    if (!g_registry[i].registered) {
+      g_registry[i] = *entry;
+      g_registry[i].registered = true;
+      g_registry_size++;
+      return true;
+    }
+  }
+  // Этот код не должен выполняться, если registry_ensure_capacity отработал правильно
+  return false;
+}
+
+/**
+ * @brief Удаляет запись из реестра игр по индексу.
+ *
+ * Помечает ячейку как незарегистрированную, уменьшает счётчик размера и сдвигает
+ * все последующие элементы на одну позицию влево, чтобы заполнить образовавшуюся дыру.
+ * Освобождает память, выделенную для `library_path`.
+ *
+ * @param[in] index Индекс записи, которую нужно удалить.
+ *
+ * @details
+ * 1. Проверяет, что индекс в допустимых пределах и запись зарегистрирована.
+ * 2. Если `library_path` не NULL, освобождает его через `free`.
+ * 3. Устанавливает `registered` в `false`.
+ * 4. Сдвигает все элементы с индекса `index+1` до конца массива на одну позицию влево.
+ * 5. Уменьшает `g_registry_size`.
+ *
+ * @note Вызывается только `bg_unload_all_plugins` и только для динамически загруженных плагинов.
+ * @warning Не является потокобезопасной. Не проверяет валидность индекса.
+ * @see bg_unload_all_plugins()
+ * @internal
+ */
+static void registry_remove_entry(int index) {
+  if (index < 0 || index >= g_registry_capacity || !g_registry[index].registered) {
+    return;
+  }
+
+  // Освобождаем память, выделенную под путь к библиотеке
+  if (g_registry[index].library_path) {
+    free(g_registry[index].library_path);
+    g_registry[index].library_path = NULL;
+  }
+
+  // Помечаем как незарегистрированное
+  g_registry[index].registered = false;
+
+  // Сдвигаем оставшиеся элементы влево, чтобы заполнить дыру
+  if (index < g_registry_capacity - 1) {
+    memmove(&g_registry[index], &g_registry[index + 1], (g_registry_capacity - index - 1) * sizeof(GameRegistryEntry));
+  }
+  // Обнуляем последний элемент
+  memset(&g_registry[g_registry_capacity - 1], 0, sizeof(GameRegistryEntry));
+
+  g_registry_size--;
 }
 
 void bg_register_game(GameInterface_t iface) {
-  bg_init_registry();
+  registry_init();
 
   // Проверяем, не зарегистрирована ли уже игра с таким ID
-  for (int i = 0; i < BG_MAX_GAMES; ++i) {
-    if (g_registry[i].registered && g_registry[i].iface.id == iface.id) {
-      // Игра с таким ID уже зарегистрирована — игнорируем повторную регистрацию
-      return;
-    }
+  int index = registry_find_by_id(iface.id);
+  if (index != -1) {
+    // Игра с таким ID уже зарегистрирована — игнорируем повторную регистрацию
+    return;
   }
 
-  // Ищем пустой слот в реестре
-  for (int i = 0; i < BG_MAX_GAMES; ++i) {
-    if (!g_registry[i].registered) {
-      g_registry[i].iface = iface;
-      g_registry[i].registered = true;
-      return;
-    }
-  }
+  // Создаём новую запись
+  GameRegistryEntry entry = {0};
+  entry.iface = iface;
+  // Для встроенных игр поля library_handle и library_path оставляем NULL
 
-  // Реестр переполнен (молча игнорируем)
+  if (!registry_add_entry(&entry)) {
+    // Реестр переполнен или ошибка выделения памяти (молча игнорируем)
+  }
 }
 
 const GameInterface_t *bg_get_game(GameId_t id) {
-  bg_init_registry();
+  registry_init();
 
-  for (int i = 0; i < BG_MAX_GAMES; ++i) {
-    if (g_registry[i].registered && g_registry[i].iface.id == id) {
-      return &g_registry[i].iface;
-    }
+  int index = registry_find_by_id(id);
+  if (index != -1) {
+    return &g_registry[index].iface;
   }
   return NULL;
 }
@@ -227,6 +327,7 @@ typedef struct {
   void *instance;  ///< Указатель на экземпляр текущей игры
 } GameContext;
 
+
 /**
  * @brief Глобальный контекст активной игры
  *
@@ -256,7 +357,7 @@ bool bg_switch_game(GameId_t id) {
   // Проверяем, не пытаемся ли мы переключиться на ту же самую игру
   if (g_current.instance && g_current.iface && g_current.iface->id == id) {
     return true;
-}
+  }
 
   // Уничтожаем старый экземпляр, если он был
   if (g_current.instance && g_current.iface) {
@@ -278,6 +379,7 @@ bool bg_switch_game(GameId_t id) {
 }
 
 const GameInterface_t *bg_get_current_game(void) { return g_current.iface; }
+
 
 void *bg_get_current_instance(void) { return g_current.instance; }
 
@@ -306,6 +408,96 @@ GameInfo_t updateCurrentState(void) {
   return info;
 }
 
+int bg_load_plugin(const char *path) {
+  // 1. Проверка существования файла (упрощённо)
+  if (!path || access(path, F_OK) != 0) {
+    return -1; // Файл не найден или недоступен
+  }
+
+  // 2. Загрузка динамической библиотеки
+  void* handle = dlopen(path, RTLD_LAZY);
+  if (!handle) {
+    return -2; // Не удалось загрузить библиотеку
+  }
+
+  // 3. Получение адреса функции get_game_interface
+  GameInterface_t (*get_game_interface_func)(void);
+  *(void**)(&get_game_interface_func) = dlsym(handle, "get_game_interface");
+  if (!get_game_interface_func) {
+    dlclose(handle);
+    return -3; // Символ не найден
+  }
+
+  // 4. Вызов функции для получения интерфейса
+  GameInterface_t iface = get_game_interface_func();
+  if (iface.id == GAME_UNDEFINED) {
+    dlclose(handle);
+    return -3; // Некорректный интерфейс
+  }
+
+  // 5. Проверка, не зарегистрирована ли уже игра с таким ID
+  if (bg_get_game(iface.id)) {
+    dlclose(handle);
+    return -4; // Дубликат
+  }
+
+  // 6. Создание записи для реестра
+  GameRegistryEntry entry = {0};
+  entry.iface = iface;
+  entry.library_handle = handle;
+  // Копируем путь к файлу
+  entry.library_path = strdup(path); // Требует <string.h>
+  if (!entry.library_path) {
+    dlclose(handle);
+    return -2; // Ошибка выделения памяти
+  }
+
+  // 7. Добавление в реестр
+  if (!registry_add_entry(&entry)) {
+    dlclose(handle);
+    free(entry.library_path);
+    return -2; // Ошибка добавления в реестр
+  }
+
+  return 0; // Успех
+}
+
+int bg_unload_all_plugins(void) {
+  // Проходим в обратном порядке, чтобы при удалении индексы оставались валидными
+  for (int i = g_registry_capacity - 1; i >= 0; i--) {
+    if (g_registry[i].registered && g_registry[i].library_handle) {
+      // Если эта игра является текущей, уничтожаем её экземпляр
+      if (g_current.iface == &g_registry[i].iface && g_current.instance) {
+        g_current.iface->destroy(g_current.instance);
+        g_current.instance = NULL;
+        g_current.iface = NULL;
+      }
+      // Выгружаем библиотеку
+      dlclose(g_registry[i].library_handle);
+      // Удаляем запись из реестра (это также освободит library_path)
+      registry_remove_entry(i);
+    }
+  }
+  return 0;
+}
+
+int bg_get_registered_count(void) {
+  // registry_init(); // Вызов не нужен, т.к. registry_find_by_id вызывает registry_init
+  return g_registry_size;
+}
+
+int bg_list_registered_games(GameId_t *buffer, int buffer_size) {
+  if (!buffer || buffer_size <= 0) return 0;
+
+  int count = 0;
+  for (int i = 0; i < g_registry_capacity && count < buffer_size; ++i) {
+    if (g_registry[i].registered) {
+      buffer[count++] = g_registry[i].iface.id;
+    }
+  }
+  return count;
+}
+
 #ifdef TEST_ENV
 /**
  * @brief Сбрасывает текущий контекст игры (для тестов)
@@ -322,7 +514,12 @@ void bg_reset_current_for_testing(void) {
 }
 
 void bg_reset_registry_for_testing(void) {
-  memset(g_registry, 0, sizeof(g_registry));
-  g_registry_initialized = false;
+  // Выгружаем все плагины
+  bg_unload_all_plugins();
+  // Освобождаем память динамического массива
+  free(g_registry);
+  g_registry = NULL;
+  g_registry_capacity = 0;
+  g_registry_size = 0;
 }
 #endif
